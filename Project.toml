@@ -1,0 +1,10 @@
+name = "HealpixMPI"
+uuid = "13ef2956-0416-496b-acf0-802ddd2ca2dc"
+authors = ["LeeoBianchi <leobianchi98@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+CBinding = "d43a6710-96b8-4a2d-833c-c424785e5374"
+Healpix = "9f4e344d-96bc-545a-84a3-ae6b9e1b672b"
+Libsharp = "ac8d63fe-4615-43ae-9860-9cd4a3820532"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"

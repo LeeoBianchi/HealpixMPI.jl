@@ -1,3 +1,44 @@
+""" struct GeomInfoMPI{I <: Integer, T <: Real}
+
+Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DistributedMap`.
+
+An `GeomInfoMPI` type contains:
+- `nside`: NSIDE parameter of the whole map.
+- `maxnr`: maximum number of rings in the subsets, over the tasks involved.
+- `comm`: MPI communicator used.
+- `rings`: array of the ring indexes (w.r.t. the whole map) contained in the subset.
+- `rstart`: array containing the index of the first pixel of each ring contained in the subset.
+- `nphi`: array containing the number of pixels in every ring contained in the subset.
+- `theta`: array of colatitudes (in radians) of the rings contained in the subset.
+- `phi0`: array containing the values of the azimuth (in radians) of the first pixel in every ring.
+
+"""
+mutable struct GeomInfoMPI{I<:Integer, T<:Real}
+    #communicator
+    comm::MPI.Comm #FIXME: move in DistributedMap (?)
+
+    #global info
+    nside::I
+    maxnr::I
+
+    #local info
+    rings::Vector{I}
+    rstart::Vector{I}
+    nphi::Vector{I}
+    theta::Vector{T}
+    phi0::Vector{T}
+
+    GeomInfoMPI{I,T}(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {I <: Integer, T <: Real} =
+        new{I, T}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
+end
+
+GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {I <: Integer, T <: Real} =
+    GeomInfoMPI{I,T}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
+
+#empty constructor
+GeomInfoMPI{I,T}() where {I<:Integer, T<:Number} = GeomInfoMPI{I,T}(0, 0, Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
+GeomInfoMPI() = GeomInfoMPI{Int64,Float64}()
+
 """
     struct DistributedMap{T<:Number, I<:Integer}
 
@@ -17,27 +58,69 @@ The `GeomInfo` contained in `info` must match exactly the characteristic of the 
 this can be constructed through the function `make_subset_healpix_geom_info`, for instance.
 
 """
-mutable struct DistributedMap{T<:Number, I<:Integer}
+mutable struct DistributedMap{T<:Number}
     pixels::Vector{T}
-    rings::Vector{I}   #######
-    rstarts::Vector{I} #######FIXME: maybe embed these two in GeomInfo
-    info::GeomInfo
-    comm::MPI.Comm
+    info::GeomInfoMPI
 
-    DistributedMap{T,I}(pixels::Vector{T}, rings::Vector{I}, rstarts::Vector{I}, info::GeomInfo, comm::MPI.Comm) where {T<:Number, I<:Integer} =
-        new{T,I}(pixels, rings, rstarts, info, comm)
+    DistributedMap{T}(pixels::Vector{T}, info::GeomInfoMPI) where {T<:Number} =
+        new{T}(pixels, info)
 end
 
-DistributedMap(pixels::Vector{T}, rings::Vector{I}, rstarts::Vector{I}, info::GeomInfo, comm::MPI.Comm) where {T<:Number, I<:Integer} =
-    DistributedMap{T,I}(pixels, rings, rstarts, info, comm)
-
-#constructs also the info object, assuming stride=1
-DistributedMap(pixels::Vector{T}, rings::Vector{I}, rstarts::Vector{I}, nside::Integer, comm::MPI.Comm) where {T<:Number, I<:Integer} =
-    DistributedMap{T,I}(pixels, rings, rstarts, make_subset_healpix_geom_info(nside, 1, rings), comm)
+DistributedMap(pixels::Vector{T}, info::GeomInfoMPI) where {T<:Number} =
+    DistributedMap{T}(pixels, info)
 
 #empty constructors
-DistributedMap{T,I}() where {T<:Number, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), GeomInfo(Ptr{Cvoid}()), MPI.COMM_WORLD)
-DistributedMap() = DistributedMap{Float64, Int}()
+DistributedMap{I,T}() where {I<:Integer, T<:Number} = DistributedMap{T}(Vector{T}(undef, 0), GeomInfoMPI{I, T}())
+DistributedMap() = DistributedMap{Int, Float64}()
+
+function Healpix.numOfRings(nside::Integer)
+    4*nside - 1
+end
+
+function get_equator_idx(nside::Integer)
+    2*nside
+end
+get_equator_idx(res::Resolution) = get_equator_idx(res.nside)
+
+"""
+    Return number of rings on specified task given total map resolution
+    and communicator size according to Round Robin.
+"""
+function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
+    (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
+    (eq_idx + c_size - 1 - task_rank) ÷ c_size * 2 - iszero(task_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
+end
+get_nrings_RR(nside::Integer, task_rank::Integer, c_size::Integer) = get_nrings_RR(eq_idx = get_equator_idx(nside), task_rank, c_size)
+get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(res.nside, task_rank, c_size)
+
+"""
+    Return array of rings on specified task given total map resolution
+    and communicator size, ordered from the equator to the poles alternating N/S,
+    according to Round Robin.
+"""
+function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
+    eq_idx = get_equator_idx(nside)
+    nrings = get_nrings_RR(eq_idx, t_rank, c_s)
+    rings = Vector{Int}(undef, nrings)
+    @inbounds for i in 1:nrings
+        k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
+        ring = eq_idx - (-1)^(i + j) * (c_rank + k *c_size) #(-1)^i alternates rings north/south
+        rings[i] = ring
+    end
+    rings
+end
+
+function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
+    rings = Vector{Int}(undef, local_nrings)
+    j = !iszero(t_rank)
+    @inbounds for i in 1:local_nrings
+        k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
+        ring = eq_idx - (-1)^(i + j) * (t_rank + k *c_size) #(-1)^i alternates rings north/south
+        rings[i] = ring
+    end
+    rings
+end
+
 
 function ScatterMap_RR!(
     map::HealpixMap{T,RingOrder,Array{T,1}},
@@ -49,32 +132,43 @@ function ScatterMap_RR!(
     c_rank = MPI.Comm_rank(comm)
     c_size = MPI.Comm_size(comm)
     res = map.resolution
-    eq_idx = get_equator_idx(res)
-    nrings = (eq_idx + c_size - 1 - c_rank) ÷ c_size * 2 - iszero(c_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
+    nrings = get_nrings_RR(res, c_rank, c_size) #number of LOCAL rings
     #if we have too many MPI tasks, some will be empty
     (!iszero(nrings)) || throw(DomainError(0, "$c_rank-th MPI task has no rings."))
     rings = Vector{Int}(undef, nrings)
-    rstarts = Vector{Int}(undef, nrings)
-    pixels = Vector{Vector{ComplexF64}}(undef, nrings) #vector of rings
+    rstart = Vector{Int}(undef, nrings)
+    pixels = Vector{Vector{Float64}}(undef, nrings) #vector of rings
+    theta = Vector{Float64}(undef, nrings) #colatitude of every ring
+    phi0 = Vector{Float64}(undef, nrings)  #longitude of the first pixel of every ring #NOTE: how to do this with subset of maps?
+    nphi = Vector{Float64}(undef, nrings)
     ringinfo = RingInfo(0, 0, 0, 0, 0) #initialize ring info object
     j = !iszero(c_rank) #index correction factor for when we have the equator (c_rank = 0, j=0), or not (c_rank > 0, j = 1)
-    rstart = 1 #keeps track of the indexes, to compute rstarts (1-based)
+    rstart = 1 #keeps track of the indexes, to compute rstarts NOTE:(1-based)!!
+    eq_idx = get_equator_idx(res)
     @inbounds for i in 1:nrings
-        k = (i - j)÷ 2 #ring pair index (the same for each cuple of corresponding north/south rings)
-        ring = eq_idx - (-1)^(i + j) * (c_rank + k *c_size) #(-1)^i alternates rings north/south
+        k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
+        ring = eq_idx - (-1)^(i + j) * (c_rank + k *c_size) #(-1)^i+j alternates rings north/south
         rings[i] = ring
-        getringinfo!(res, ring, ringinfo; full=false)
+        getringinfo!(res, ring, ringinfo; full=true)
+        theta[i] = ringinfo.colatitude_rad
+        phi0[i] = pix2ang(map, ringinfo.firstPixIdx)[2]
         pixels[i] = get_ring_pixels(map, ringinfo)
-        rstarts[i] = rstart
+        rstart[i] = rstart
+        nphi[i] = ringinfo.numOfPixels
         rstart += ringinfo.numOfPixels
     end
     pixels = reduce(vcat, pixels) #FIXME:Is this the most efficient way?
     println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res)) \n")
+    maxnr = (eq_idx%c_size == 0) ? get_nrings_RR(res, 0, c_size) : get_nrings_RR(res, 0, c_size)+1
     d_map.pixels = pixels
-    d_map.rings = rings
-    d_map.rstarts = rstarts
-    d_map.info = make_subset_healpix_geom_info(map.resolution.nside, stride, rings)
-    d_map.comm = comm
+    d_map.info.comm = comm
+    d_map.info.nside = res.nside
+    d_map.info.maxnr = maxnr
+    d_map.info.rings = rings
+    d_map.info.rstart = rstart
+    d_map.info.nphi = nphi
+    d_map.info.theta = theta
+    d_map.info.phi0 = phi0
 end
 
 """

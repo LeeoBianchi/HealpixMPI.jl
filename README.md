@@ -1,1 +1,1 @@
-# HealpixMPI.jl
+# HealpixMPI

@@ -20,6 +20,7 @@ mutable struct GeomInfoMPI{T<:Real, I<:Integer}
     #global info
     nside::I
     maxnr::I
+    thetatot::Vector{T}
 
     #local info
     rings::Vector{I}
@@ -28,16 +29,32 @@ mutable struct GeomInfoMPI{T<:Real, I<:Integer}
     theta::Vector{T}
     phi0::Vector{T}
 
-    GeomInfoMPI{T,I}(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
-        new{T,I}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
+    GeomInfoMPI{T,I}(nside::I, maxnr::I, thetatot::Vector{T}, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
+        new{T,I}(comm, nside, maxnr, thetatot, rings, rstart, nphi, theta, phi0)
 end
 
 GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
-    GeomInfoMPI{T,I}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
+    GeomInfoMPI{T,I}(nside, maxnr, ring2theta(Resolution(nside)), rings, rstart, nphi, theta, phi0, comm)
 
 #empty constructor
-GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
-GeomInfoMPI() = GeomInfoMPI{Int64,Float64}()
+GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
+GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
+
+"""
+    Create an array of the colatitude in radians (theta) of each ring in `rings` for a map with resolution `res`.
+    If no `rings` array is passed, the computation is performed on all the rings deducted from `res`.
+"""
+function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer}
+    theta = Vector{Float64}(undef, nrings)
+    ringinfo = RingInfo(0, 0, 0, 0, 0)
+    @inbounds for i in 1:length(rings)
+        getringinfo!(res, rings[i], ringinfo; full=true)
+        theta[i] = ringinfo.colatitude_rad
+    end
+    theta
+end
+
+ring2theta(res::Resolution) = ring2theta(Vector{Int}(1:res.nsideTimesFour-1), res)
 
 """
     struct DistributedMap{T<:Number, I<:Integer}
@@ -58,19 +75,19 @@ The `GeomInfo` contained in `info` must match exactly the characteristic of the 
 this can be constructed through the function `make_subset_healpix_geom_info`, for instance.
 
 """
-mutable struct DistributedMap{T<:Number, I<:Integer}
+mutable struct DistributedMap{T<:Real, I<:Integer}
     pixels::Vector{T}
     info::GeomInfoMPI{T,I}
 
-    DistributedMap{T,I}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Number, I<:Integer} =
+    DistributedMap{T,I}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<:Integer} =
         new{T,I}(pixels, info)
 end
 
-DistributedMap(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Number, I<: Integer} =
+DistributedMap(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<: Integer} =
     DistributedMap{T,I}(pixels, info)
 
 #empty constructors
-DistributedMap{T,I}() where {T<:Number, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
+DistributedMap{T,I}() where {T<:Real, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
 DistributedMap() = DistributedMap{Float64, Int64}()
 
 function Healpix.numOfRings(nside::Integer)
@@ -94,7 +111,7 @@ get_nrings_RR(nside::Integer, task_rank::Integer, c_size::Integer) = get_nrings_
 get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(res.nside, task_rank, c_size)
 
 """
-    Return array of rings on specified task given total map resolution
+    Return array of rings on specified task (0-base index) given total map resolution
     and communicator size, ordered from the equator to the poles alternating N/S,
     according to Round Robin.
 """
@@ -121,7 +138,7 @@ function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer
     rings
 end
 
-
+#FIXME: create version which does not re-compute info in d_map
 function ScatterMap_RR!(
     map::HealpixMap{T,RingOrder,Array{T,1}},
     d_map::DistributedMap{T}
@@ -163,6 +180,7 @@ function ScatterMap_RR!(
     d_map.info.comm = comm
     d_map.info.nside = res.nside
     d_map.info.maxnr = maxnr
+    d_map.info.thetatot = ring2theta(res)
     d_map.info.rings = rings
     d_map.info.rstart = rstart
     d_map.info.nphi = nphi

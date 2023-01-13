@@ -102,8 +102,8 @@ end
 """
 function get_m_tasks_RR(mmax::Integer, c_size::Integer)
     res = Vector{Int}(undef, mmax+1)
-    for mi in 0:mmax
-        res[mi+1] = rem(mi,c_size)
+    for m in 0:mmax
+        res[m+1] = rem(m,c_size)
     end
     res
 end
@@ -129,8 +129,8 @@ end
 #the input Alm object is broadcasted by MPI.Scatter!
 function ScatterAlm_RR!(
     alm::Alm{T,Array{T,1}},
-    d_alm::DistributedAlm{T}
-    ) where {T <: Number}
+    d_alm::DistributedAlm{T,I}
+    ) where {T <: Number, I <: Integer}
 
     stride = 1
     c_rank = MPI.Comm_rank(d_alm.info.comm)
@@ -172,11 +172,11 @@ end
 """
 function MPI.Scatter!(
     in_alm::Alm{T,Array{T,1}},
-    out_d_alm::DistributedAlm{T},
+    out_d_alm::DistributedAlm{T,I},
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     comm = out_d_alm.info.comm
     if MPI.Comm_rank(comm) == root
@@ -196,11 +196,11 @@ end
 #non root node
 function MPI.Scatter!(
     in_alm::Nothing,
-    out_d_alm::DistributedAlm{T},
+    out_d_alm::DistributedAlm{T,I},
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     comm = out_d_alm.info.comm
     (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input alm on root task can not be `nothing`."))
@@ -216,12 +216,12 @@ end
 
 function MPI.Scatter!(
     in_alm,
-    out_d_alm::DistributedAlm{T},
+    out_d_alm::DistributedAlm{T,I},
     comm::MPI.Comm,
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
     out_d_alm.info.comm = comm #overwrites the Comm in the d_alm
     MPI.Scatter!(in_alm, out_d_alm, strategy, root, clear)
 end
@@ -230,10 +230,10 @@ end
 
 #root task
 function GatherAlm_RR_root!(
-    d_alm::DistributedAlm{T},
+    d_alm::DistributedAlm{T,I},
     alm::Alm{T,Array{T,1}},
     root::Integer
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
     crank = MPI.Comm_rank(comm)
@@ -267,9 +267,9 @@ end
 
 #for NON-ROOT tasks: no output
 function GatherAlm_RR_rest!(
-    d_alm::DistributedAlm{T},
+    d_alm::DistributedAlm{T,I},
     root::Integer
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
     crank = MPI.Comm_rank(d_alm.info.comm)
@@ -321,12 +321,12 @@ end
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Gather!(
-    in_d_alm::DistributedAlm{T},
+    in_d_alm::DistributedAlm{T,I},
     out_alm::Alm{T,Array{T,1}},
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     if strategy == :RR #Round Robin, can add more.
         if MPI.Comm_rank(in_d_alm.info.comm) == root
@@ -342,12 +342,12 @@ end
 
 #allows non-root tasks to pass nothing as output
 function MPI.Gather!(
-    in_d_alm::DistributedAlm{T},
+    in_d_alm::DistributedAlm{T,I},
     out_alm::Nothing,
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
 
@@ -362,10 +362,10 @@ end
 ## Allgather
 
 function AllgatherAlm_RR!(
-    d_alm::DistributedAlm{T},
+    d_alm::DistributedAlm{T,I},
     alm::Alm{T,Array{T,1}},
     root::Integer
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
     crank = MPI.Comm_rank(comm)
@@ -422,12 +422,12 @@ end
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
-    in_d_alm::DistributedAlm{T},
+    in_d_alm::DistributedAlm{T,I},
     out_alm::Alm{T,Array{T,1}},
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number}
+    ) where {T<:Number, I<:Integer}
 
     if strategy == :RR #Round Robin, can add more.
         AllgatherAlm_RR!(in_d_alm, out_alm, root)
@@ -448,7 +448,7 @@ import LinearAlgebra: dot
     `DistributedAlm`s passed in input.
 
 """
-function localdot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}}) where {T <: Number}
+function localdot(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
     lmax = (alm₁.info.lmax == alm₁.info.lmax) ? alm₁.info.lmax : throw(DomainError(1, "lmax must match"))
     mval = (alm₁.info.mval == alm₂.info.mval) ? alm₁.info.mval : throw(DomainError(2, "mval must match"))
     mstart = (alm₁.info.mstart == alm₂.info.mstart) ? alm₁.info.mstart : throw(DomainError(3, "mstarts must match"))
@@ -477,10 +477,10 @@ end
 
     MPI-parallel dot product between two `DistributedAlm` object of matching size.
 """
-function dot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}}) where {T <: Number}
+function dot(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
-    res = localdot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}})
+    res = localdot(alm₁, alm₂)
     MPI.Barrier(comm) #FIXME: necessary??
     print("task $(MPI.Comm_rank(comm)), dot = $res")
     MPI.Allreduce(res, +, comm) #we sum together all the local results on each task

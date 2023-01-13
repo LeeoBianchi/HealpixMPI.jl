@@ -13,7 +13,7 @@ An `GeomInfoMPI` type contains:
 - `phi0`: array containing the values of the azimuth (in radians) of the first pixel in every ring.
 
 """
-mutable struct GeomInfoMPI{I<:Integer, T<:Real}
+mutable struct GeomInfoMPI{T<:Real, I<:Integer}
     #communicator
     comm::MPI.Comm #FIXME: move in DistributedMap (?)
 
@@ -28,15 +28,15 @@ mutable struct GeomInfoMPI{I<:Integer, T<:Real}
     theta::Vector{T}
     phi0::Vector{T}
 
-    GeomInfoMPI{I,T}(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {I <: Integer, T <: Real} =
-        new{I, T}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
+    GeomInfoMPI{T,I}(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
+        new{T,I}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
 end
 
-GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {I <: Integer, T <: Real} =
-    GeomInfoMPI{I,T}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
+GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
+    GeomInfoMPI{T,I}(comm, nside, maxnr, rings, rstart, nphi, theta, phi0)
 
 #empty constructor
-GeomInfoMPI{I,T}() where {I<:Integer, T<:Number} = GeomInfoMPI{I,T}(0, 0, Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
+GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
 GeomInfoMPI() = GeomInfoMPI{Int64,Float64}()
 
 """
@@ -58,20 +58,20 @@ The `GeomInfo` contained in `info` must match exactly the characteristic of the 
 this can be constructed through the function `make_subset_healpix_geom_info`, for instance.
 
 """
-mutable struct DistributedMap{T<:Number}
+mutable struct DistributedMap{T<:Number, I<:Integer}
     pixels::Vector{T}
-    info::GeomInfoMPI
+    info::GeomInfoMPI{T,I}
 
-    DistributedMap{T}(pixels::Vector{T}, info::GeomInfoMPI) where {T<:Number} =
-        new{T}(pixels, info)
+    DistributedMap{T,I}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Number, I<:Integer} =
+        new{T,I}(pixels, info)
 end
 
-DistributedMap(pixels::Vector{T}, info::GeomInfoMPI) where {T<:Number} =
-    DistributedMap{T}(pixels, info)
+DistributedMap(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Number, I<: Integer} =
+    DistributedMap{T,I}(pixels, info)
 
 #empty constructors
-DistributedMap{I,T}() where {I<:Integer, T<:Number} = DistributedMap{T}(Vector{T}(undef, 0), GeomInfoMPI{I, T}())
-DistributedMap() = DistributedMap{Int, Float64}()
+DistributedMap{T,I}() where {T<:Number, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
+DistributedMap() = DistributedMap{Float64, Int64}()
 
 function Healpix.numOfRings(nside::Integer)
     4*nside - 1
@@ -124,8 +124,8 @@ end
 
 function ScatterMap_RR!(
     map::HealpixMap{T,RingOrder,Array{T,1}},
-    d_map::DistributedMap{T,I},
-    ) where {T <: Number, I <: Integer}
+    d_map::DistributedMap{T}
+    ) where {T <: Real, I <: Integer}
 
     stride = 1
     c_rank = MPI.Comm_rank(d_map.info.comm)
@@ -194,11 +194,11 @@ end
 """
 function MPI.Scatter!(
     in_map::HealpixMap{T,RingOrder,Array{T,1}},
-    out_d_map::DistributedMap{T,I},
+    out_d_map::DistributedMap{T},
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     comm = out_d_map.info.comm
     if MPI.Comm_rank(comm) == root
@@ -221,7 +221,7 @@ function MPI.Scatter!(
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     comm = out_d_map.info.comm
     (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input map on root task can NOT be `nothing`."))
@@ -242,7 +242,7 @@ function MPI.Scatter!(
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
     out_d_map.info.comm = comm #overwrites comm in d_map
     MPI.Scatter!(in_map, out_d_map, strategy, root, clear)
 end
@@ -253,7 +253,7 @@ function GatherMap_RR_root!(
     d_map::DistributedMap{T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}},
     root::Integer
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
     crank = MPI.Comm_rank(comm)
@@ -286,7 +286,7 @@ end
 function GatherMap_RR_rest!(
     d_map::DistributedMap{T,I},
     root::Integer
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
     crank = MPI.Comm_rank(comm)
@@ -344,7 +344,7 @@ function MPI.Gather!(
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     if strategy == :RR #Round Robin, can add more.
         if MPI.Comm_rank(in_d_map.info.comm) == root
@@ -366,7 +366,7 @@ function MPI.Gather!(
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "output map on root task can not be `nothing`."))
     if strategy == :RR #Round Robin, can add more.
@@ -383,7 +383,7 @@ function AllgatherMap_RR!(
     d_map::DistributedMap{T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}},
     root::Integer
-    ) where {T <: Number, I <: Integer}
+    ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
     crank = MPI.Comm_rank(comm)
@@ -438,7 +438,7 @@ function MPI.Allgather!(
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where  {T <: Number, I <: Integer}
+    ) where  {T <: Real, I <: Integer}
 
     if strategy == :RR #Round Robin, can add more.
         AllgatherMap_RR!(in_d_map, out_map, root)

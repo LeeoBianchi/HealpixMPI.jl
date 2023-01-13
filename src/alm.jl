@@ -1,3 +1,5 @@
+using MPI #then remove, it's already in HealpixMPI.jl
+using Healpix
 """ struct AlmInfoMPI{I <: Integer}
 
 Information describing an MPI-distributed subset of `Alm`, contained in a `DistributedAlm`.
@@ -53,24 +55,24 @@ The `AlmInfo` contained in `info` must match exactly the characteristic of the A
 this can be constructed through the function `make_general_alm_info`, for instance.
 
 """
-mutable struct DistributedAlm{T <: Number}
+mutable struct DistributedAlm{T<:Number, I<:Integer}
     alm::Vector{T}
-    info::AlmInfoMPI
+    info::AlmInfoMPI{I}
 
-    DistributedAlm{T}(alm::Vector{T}, info::AlmInfoMPI) where {T <: Number} =
-        new{T}(alm, info)
+    DistributedAlm{T,I}(alm::Vector{T}, info::AlmInfoMPI{I}) where {T<:Number, I<:Integer} =
+        new{T,I}(alm, info)
 end
 
-DistributedAlm(alm::Vector{T}, info::AlmInfoMPI) where {T <: Number} =
-    DistributedAlm{T}(alm, info)
+DistributedAlm(alm::Vector{T}, info::AlmInfoMPI{I}) where {T<:Number, I<:Integer} =
+    DistributedAlm{T,I}(alm, info)
 
 #constructor with only comm
-DistributedAlm{I,T}(comm::MPI.Comm) where {I<:Integer, T<:Number} = DistributedAlm(Vector{T}(undef, 0), AlmInfoMPI{I}(comm))
-DistributedAlm(comm::MPI.Comm) = DistributedAlm{Integer, ComplexF64}(comm)
+DistributedAlm{T,I}(comm::MPI.Comm) where {T<:Number, I<:Integer} = DistributedAlm(Vector{T}(undef, 0), AlmInfoMPI{I}(comm))
+DistributedAlm(comm::MPI.Comm) = DistributedAlm{ComplexF64, Int64}(comm)
 
 #empty constructors
-DistributedAlm{I,T}() where {I<:Integer, T<:Number} = DistributedAlm(Vector{T}(undef, 0), AlmInfoMPI{I}())
-DistributedAlm() = DistributedAlm{Int64, ComplexF64}()
+DistributedAlm{T,I}() where {T<:Number, I<:Integer} = DistributedAlm(Vector{T}(undef, 0), AlmInfoMPI{I}())
+DistributedAlm() = DistributedAlm{ComplexF64, Int64}()
 
 # MPI Overloads:
 ## SCATTER
@@ -368,7 +370,7 @@ function AllgatherAlm_RR!(
     comm = d_alm.info.comm
     crank = MPI.Comm_rank(comm)
     csize = MPI.Comm_size(comm)
-    
+
     #local quantities:
     lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval

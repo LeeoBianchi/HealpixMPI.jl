@@ -125,12 +125,11 @@ end
 function ScatterMap_RR!(
     map::HealpixMap{T,RingOrder,Array{T,1}},
     d_map::DistributedMap{T,I},
-    comm::MPI.Comm
     ) where {T <: Number, I <: Integer}
 
     stride = 1
-    c_rank = MPI.Comm_rank(comm)
-    c_size = MPI.Comm_size(comm)
+    c_rank = MPI.Comm_rank(d_map.info.comm)
+    c_size = MPI.Comm_size(d_map.info.comm)
     res = map.resolution
     nrings = get_nrings_RR(res, c_rank, c_size) #number of LOCAL rings
     #if we have too many MPI tasks, some will be empty
@@ -187,27 +186,46 @@ end
     # Arguments:
     - `in_map::HealpixMap{T,RingOrder,Array{T,1}}`: `HealpixMap` object to distribute over the MPI tasks.
     - `out_d_alm::DistributedMap{T,I}`: output `DistributedMap` object.
-    - `strategy::Symbol`: Strategy to be used, e.g. pass `:RR` for "Round Robin".
-    - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function MPI.Scatter!(
     in_map::HealpixMap{T,RingOrder,Array{T,1}},
     out_d_map::DistributedMap{T,I},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number, I <: Integer}
 
+    comm = out_d_map.info.comm
     if MPI.Comm_rank(comm) == root
         MPI.bcast(in_map, root, comm)
     else
         in_map = MPI.bcast(nothing, root, comm)
     end
+
+    if strategy == :RR #Round Robin, can add more.
+        ScatterMap_RR!(in_map, out_d_map)
+    end
+    if clear
+        in_map = nothing #free unnecessary copies of map
+    end
+end
+
+function MPI.Scatter!(
+    in_map::Nothing,
+    out_d_map::DistributedMap{T,I},
+    strategy::Symbol = :RR,
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {T <: Number, I <: Integer}
+
+    comm = out_d_map.info.comm
+    (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input map on root task can NOT be `nothing`."))
+    in_map = MPI.bcast(nothing, root, comm)
 
     if strategy == :RR #Round Robin, can add more.
         ScatterMap_RR!(in_map, out_d_map, comm)
@@ -220,48 +238,37 @@ end
 function MPI.Scatter!(
     in_map::Nothing,
     out_d_map::DistributedMap{T,I},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    comm::MPI.Comm,
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number, I <: Integer}
-
-    (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input map on root task can NOT be `nothing`."))
-    in_map = MPI.bcast(nothing, root, comm)
-
-    if strategy == :RR #Round Robin, can add more.
-        ScatterMap_RR!(in_map, out_d_map, comm)
-    end
-    if clear
-        in_map = nothing #free unnecessary copies of map
-    end
+    out_d_map.info.comm = comm #overwrites comm in d_map
+    MPI.Scatter!(in_map, out_d_map, strategy, root, clear)
 end
-
 
 #######################################################################
 #root task
 function GatherMap_RR_root!(
     d_map::DistributedMap{T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}},
-    comm::MPI.Comm,
     root::Integer
     ) where {T <: Number, I <: Integer}
 
+    comm = d_map.info.comm
     crank = MPI.Comm_rank(comm)
     csize = MPI.Comm_size(comm)
-    #each task can have at most root_nring + 1
-    root_nring = length(d_map.rings)
-    MPI.bcast(root_nring, root, comm)
+
     resolution = map.resolution
-    MPI.bcast(resolution, root, comm)
     ringinfo = RingInfo(0, 0, 0, 0, 0)
-    rings = d_map.rings
-    @inbounds for ri in 1:root_nring+1
+    rings = d_map.info.rings
+    rstart = d_map.info.rstart
+    @inbounds for ri in 1:d_map.info.maxnr
         if ri <= length(rings)
             getringinfo!(resolution, rings[ri], ringinfo; full=false) #it's a cheap computation
             local_count = ringinfo.numOfPixels
             local_displ = ringinfo.firstPixIdx - 1
-            @views pixels = d_map.pixels[d_map.rstarts[ri]:d_map.rstarts[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
+            @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
         else
             local_count = 0
             local_displ = 0
@@ -278,23 +285,23 @@ end
 #for NON-ROOT tasks: no output
 function GatherMap_RR_rest!(
     d_map::DistributedMap{T,I},
-    comm::MPI.Comm,
     root::Integer
     ) where {T <: Number, I <: Integer}
 
+    comm = d_map.info.comm
     crank = MPI.Comm_rank(comm)
     csize = MPI.Comm_size(comm)
-    #each task can have at most root_nring + 1
-    root_nring = MPI.bcast(nothing, root, comm)
-    resolution = MPI.bcast(nothing, root, comm)
+
+    resolution = Resolution(d_map.info.nside)
     ringinfo = RingInfo(0, 0, 0, 0, 0)
-    rings = d_map.rings
-    @inbounds for ri in 1:root_nring+1
+    rings = d_map.info.rings
+    rstart = d_map.info.rstart
+    @inbounds for ri in 1:d_map.info.maxnr
         if ri <= length(rings)
-            getringinfo!(resolution, rings[ri], ringinfo; full=false) #it's a cheap computation
+            getringinfo!(resolution, rings[ri], ringinfo; full=false)
             local_count = ringinfo.numOfPixels
             local_displ = ringinfo.firstPixIdx - 1
-            @views pixels = d_map.pixels[d_map.rstarts[ri]:d_map.rstarts[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
+            @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
         else
             local_count = 0
             local_displ = 0
@@ -325,27 +332,26 @@ end
     # Arguments:
     - `in_d_map::DistributedMap{T, I}`: `DistributedMap` object to gather from the MPI tasks.
     - `out_map::HealpixMap{T,RingOrder,Array{T,1}}`: output `Map` object.
-    - `strategy::Symbol`: Strategy to be used, e.g. pass `:RR` for "Round Robin".
-    - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `DistributedMap` after having performed the "scattering".
 """
 function MPI.Gather!(
-    in_d_map::DistributedMap{T, I},
+    in_d_map::DistributedMap{T,I},
     out_map::HealpixMap{T,RingOrder,Array{T,1}},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number, I <: Integer}
 
     if strategy == :RR #Round Robin, can add more.
-        if MPI.Comm_rank(comm) == root
-            GatherMap_RR_root!(in_d_map, out_map, comm, root)
+        if MPI.Comm_rank(in_d_map.info.comm) == root
+            (out_map.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
+            GatherMap_RR_root!(in_d_map, out_map, root)
         else
-            GatherMap_RR_rest!(in_d_map, comm, root)
+            GatherMap_RR_rest!(in_d_map, root)
         end
     end
     if clear
@@ -355,16 +361,16 @@ end
 
 #allows to pass nothing as output map on non-root tasks
 function MPI.Gather!(
-    in_d_map::DistributedMap{T, I},
+    in_d_map::DistributedMap{T,I},
     out_map::Nothing,
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number, I <: Integer}
 
+    (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "output map on root task can not be `nothing`."))
     if strategy == :RR #Round Robin, can add more.
-        GatherMap_RR_rest!(in_d_map, comm, root)
+        GatherMap_RR_rest!(in_d_map, root)
     end
     if clear
         in_d_map = nothing #free unnecessary copies of map
@@ -376,30 +382,23 @@ end
 function AllgatherMap_RR!(
     d_map::DistributedMap{T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}},
-    comm::MPI.Comm,
     root::Integer
     ) where {T <: Number, I <: Integer}
 
+    comm = d_map.info.comm
     crank = MPI.Comm_rank(comm)
     csize = MPI.Comm_size(comm)
     #each task can have at most root_nring + 1
-    if crank == root
-        root_nring = length(d_map.rings)
-        MPI.bcast(root_nring, root, comm)
-        resolution = map.resolution
-        MPI.bcast(resolution, root, comm)
-    else
-        root_nring = MPI.bcast(nothing, root, comm)
-        resolution = MPI.bcast(nothing, root, comm)
-    end
+    res = map.resolution
     ringinfo = RingInfo(0, 0, 0, 0, 0)
-    rings = d_map.rings
-    @inbounds for ri in 1:root_nring+1
+    rings = d_map.info.rings
+    rstart = d_map.info.rstart
+    @inbounds for ri in 1:d_map.info.maxnr
         if ri <= length(rings)
-            getringinfo!(resolution, rings[ri], ringinfo; full=false) #it's a cheap computation
+            getringinfo!(res, rings[ri], ringinfo; full=false) #it's a cheap computation
             local_count = ringinfo.numOfPixels
             local_displ = ringinfo.firstPixIdx - 1
-            @views pixels = d_map.pixels[d_map.rstarts[ri]:d_map.rstarts[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
+            @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
         else
             local_count = 0
             local_displ = 0
@@ -427,24 +426,22 @@ end
     # Arguments:
     - `in_d_alm::DistributedMap{T,I}`: `DistributedMap` object to gather from the MPI tasks.
     - `out_d_alm::HealpixMap{T,RingOrder,Array{T,1}}`: output `HealpixMap` object to overwrite.
-    - `strategy::Symbol`: Strategy to be used, e.g. pass `:RR` for "Round Robin".
-    - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
     in_d_map::DistributedMap{T,I},
     out_map::HealpixMap{T,RingOrder,Array{T,1}},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where  {T <: Number, I <: Integer}
 
     if strategy == :RR #Round Robin, can add more.
-        AllgatherMap_RR!(in_d_map, out_map, comm, root)
+        AllgatherMap_RR!(in_d_map, out_map, root)
     end
     if clear
         in_d_map = nothing

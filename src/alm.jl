@@ -127,19 +127,17 @@ end
 #the input Alm object is broadcasted by MPI.Scatter!
 function ScatterAlm_RR!(
     alm::Alm{T,Array{T,1}},
-    d_alm::DistributedAlm{T},
-    comm::MPI.Comm
+    d_alm::DistributedAlm{T}
     ) where {T <: Number}
 
     stride = 1
-    c_rank = MPI.Comm_rank(comm)
-    c_size = MPI.Comm_size(comm)
+    c_rank = MPI.Comm_rank(d_alm.info.comm)
+    c_size = MPI.Comm_size(d_alm.info.comm)
     mval = get_mval_RR(alm.mmax, c_rank, c_size)
     #if we have too many MPI tasks, some will be empty
     (!iszero(length(mval))) || throw(DomainError(0, "$c_rank-th task is empty."))
     d_alm.alm = @view alm.alm[each_ell_idx(alm, mval)]
-    d_alm.info.comm = comm          #update info inplace
-    d_alm.info.lmax = alm.lmax
+    d_alm.info.lmax = alm.lmax          #update info inplace
     d_alm.info.mmax = alm.mmax
     d_alm.info.maxnm = get_nm_RR(alm.mmax, 0, c_size) #due to RR the maxnm is the one on the task 0
     d_alm.info.mval = mval
@@ -163,22 +161,22 @@ end
     # Arguments:
     - `in_alm::Alm{T,Array{T,1}}`: `Alm` object to distribute over the MPI tasks.
     - `out_d_alm::DistributedAlm{T}`: output `DistributedAlm` object.
-    - `strategy::Symbol`: Strategy to be used, e.g. pass `:RR` for "Round Robin".
     - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Scatter!(
     in_alm::Alm{T,Array{T,1}},
     out_d_alm::DistributedAlm{T},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number}
 
+    comm = out_d_alm.info.comm
     if MPI.Comm_rank(comm) == root
         MPI.bcast(in_alm, root, comm)
     else
@@ -186,7 +184,7 @@ function MPI.Scatter!(
     end
 
     if strategy == :RR #Round Robin, can add more.
-        ScatterAlm_RR!(in_alm, out_d_alm, comm)
+        ScatterAlm_RR!(in_alm, out_d_alm)
     end
     if clear
         in_alm = nothing #free unnecessary copies of alm
@@ -197,21 +195,33 @@ end
 function MPI.Scatter!(
     in_alm::Nothing,
     out_d_alm::DistributedAlm{T},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number}
 
+    comm = out_d_alm.info.comm
     (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input alm on root task can not be `nothing`."))
     in_alm = MPI.bcast(nothing, root, comm)
 
     if strategy == :RR #Round Robin, can add more.
-        ScatterAlm_RR!(in_alm, out_d_alm, comm)
+        ScatterAlm_RR!(in_alm, out_d_alm)
     end
     if clear
         in_alm = nothing #free unnecessary copies of alm
     end
+end
+
+function MPI.Scatter!(
+    in_alm,
+    out_d_alm::DistributedAlm{T},
+    comm::MPI.Comm,
+    strategy::Symbol = :RR,
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {T <: Number}
+    out_d_alm.info.comm = comm #overwrites the Comm in the d_alm
+    MPI.Scatter!(in_alm, out_d_alm, strategy, root, clear)
 end
 
 ## GATHER
@@ -220,10 +230,10 @@ end
 function GatherAlm_RR_root!(
     d_alm::DistributedAlm{T},
     alm::Alm{T,Array{T,1}},
-    comm::MPI.Comm,
     root::Integer
     ) where {T <: Number}
 
+    comm = d_alm.info.comm
     crank = MPI.Comm_rank(comm)
     csize = MPI.Comm_size(comm)
     #local quantities:
@@ -236,14 +246,14 @@ function GatherAlm_RR_root!(
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
-            i1 = local_mstart[mi] + 1 + m  #FIXME: embed this in a getindex function with @views
+            i1 = local_mstart[mi] + 1 + m
             i2 = i1 + lmax - m
             alm_chunk = @view d_alm.alm[i1:i2] #@view speeds up the slicing
         else
             local_count = 0
             alm_chunk = ComplexF64[]
         end
-        counts = MPI.Gather(Int32(local_count), root, comm)
+        counts = MPI.Gather(Int32(local_count), root, comm) #FIXME: can this communication be avoided?
         #MPI.Barrier(comm) #FIXME: is it necessary?
         outbuf = MPI.VBuffer(alm.alm, counts) #the output buffer points at the alms to overwrite
         outbuf.displs .+= displ_shift #we shift to the region in alm corresponding to the current round
@@ -256,12 +266,12 @@ end
 #for NON-ROOT tasks: no output
 function GatherAlm_RR_rest!(
     d_alm::DistributedAlm{T},
-    comm::MPI.Comm,
     root::Integer
     ) where {T <: Number}
 
-    crank = MPI.Comm_rank(comm)
-    csize = MPI.Comm_size(comm)
+    comm = d_alm.info.comm
+    crank = MPI.Comm_rank(d_alm.info.comm)
+    csize = MPI.Comm_size(d_alm.info.comm)
     #local quantities:
     lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval
@@ -302,27 +312,25 @@ end
     # Arguments:
     - `in_d_alm::DistributedAlm{T}`: `DistributedAlm` object to gather from the MPI tasks.
     - `out_d_alm::Alm{T,Array{T,1}}`: output `Alm` object.
-    - `strategy::Symbol`: Strategy to be used, e.g. pass `:RR` for "Round Robin".
-    - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Gather!(
     in_d_alm::DistributedAlm{T},
     out_alm::Alm{T,Array{T,1}},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number}
 
     if strategy == :RR #Round Robin, can add more.
-        if MPI.Comm_rank(comm) == root
-            GatherAlm_RR_root!(in_d_alm, out_alm, comm, root)
+        if MPI.Comm_rank(in_d_alm.info.comm) == root
+            GatherAlm_RR_root!(in_d_alm, out_alm, root)
         else
-            GatherAlm_RR_rest!(in_d_alm, comm, root)
+            GatherAlm_RR_rest!(in_d_alm, root)
         end
     end
     if clear
@@ -334,16 +342,15 @@ end
 function MPI.Gather!(
     in_d_alm::DistributedAlm{T},
     out_alm::Nothing,
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number}
 
-    (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
+    (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
 
     if strategy == :RR #Round Robin, can add more.
-        GatherAlm_RR_rest!(in_d_alm, comm, root) #on root out_alm cannot be nothing
+        GatherAlm_RR_rest!(in_d_alm, root) #on root out_alm cannot be nothing
     end
     if clear
         in_d_alm = nothing
@@ -355,31 +362,25 @@ end
 function AllgatherAlm_RR!(
     d_alm::DistributedAlm{T},
     alm::Alm{T,Array{T,1}},
-    comm::MPI.Comm,
     root::Integer
     ) where {T <: Number}
 
+    comm = d_alm.info.comm
     crank = MPI.Comm_rank(comm)
     csize = MPI.Comm_size(comm)
-    #each task can have at most the same number of m's as the root
-    if crank == root
-        root_nm = d_alm.info.nm
-        MPI.bcast(root_nm, root, comm)
-    else
-        root_nm = MPI.bcast(nothing, root, comm)
-    end
+    
     #local quantities:
-    local_nm = d_alm.info.nm
-    local_lmax = d_alm.info.lmax
+    lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval
-    local_mvstart = d_alm.info.mvstart
+    local_nm = length(local_mval)
+    local_mstart = d_alm.info.mstart
     displ_shift = 0
-    @inbounds for mi in 1:root_nm #loop over the "Robin's Rounds"
+    @inbounds for mi in 1:d_alm.maxnm #loop over the "Robin's Rounds"
         if mi <= local_nm
             m = local_mval[mi]
-            local_count = local_lmax - m + 1
-            i1 = local_mvstart[mi] + 1 + m  #FIXME: embed this in a getindex function with @views
-            i2 = i1 + local_lmax - m
+            local_count = lmax - m + 1
+            i1 = local_mstart[mi] + 1 + m  #FIXME: embed this in a getindex function with @views
+            i2 = i1 + lmax - m
             alm_chunk = @view d_alm.alm[i1:i2] #@view speeds up the slicing
         else
             local_count = 0
@@ -412,24 +413,22 @@ end
     # Arguments:
     - `in_d_alm::DistributedAlm{T}`: `DistributedAlm` object to gather from the MPI tasks.
     - `out_d_alm::Alm{T,Array{T,1}}`: output `Alm` object.
-    - `strategy::Symbol`: Strategy to be used, e.g. pass `:RR` for "Round Robin".
-    - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
     in_d_alm::DistributedAlm{T},
     out_alm::Alm{T,Array{T,1}},
-    strategy::Symbol,
-    comm::MPI.Comm;
+    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Number}
 
     if strategy == :RR #Round Robin, can add more.
-        AllgatherAlm_RR!(in_d_alm, out_alm, comm, root)
+        AllgatherAlm_RR!(in_d_alm, out_alm, root)
     end
     if clear
         in_d_alm = nothing
@@ -450,13 +449,13 @@ import LinearAlgebra: dot
 function localdot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}}) where {T <: Number}
     lmax = (alm₁.info.lmax == alm₁.info.lmax) ? alm₁.info.lmax : throw(DomainError(1, "lmax must match"))
     mval = (alm₁.info.mval == alm₂.info.mval) ? alm₁.info.mval : throw(DomainError(2, "mval must match"))
-    mvstart = (alm₁.info.mvstart == alm₂.info.mvstart) ? alm₁.info.mvstart : throw(DomainError(3, "mvstarts must match"))
-    nm = alm₁.info.nm
+    mstart = (alm₁.info.mstart == alm₂.info.mstart) ? alm₁.info.mstart : throw(DomainError(3, "mstarts must match"))
+    nm = length(mval)
     res_m0 = 0
     res_rest = 0
     @inbounds for mi in 1:nm #maybe run in parallel with JuliaThreads
         m = mval[mi]
-        i1 = mvstart[mi] + 1 + m #+1 because Julia is 1-based
+        i1 = mstart[mi] + 1 + m #+1 because Julia is 1-based
         i2 = i1 + lmax - m #this gives index range for each ell for given m
         if (m == 0)
             @inbounds for i in i1:i2
@@ -477,10 +476,10 @@ end
     MPI-parallel dot product between two `DistributedAlm` object of matching size.
 """
 function dot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}}) where {T <: Number}
-    comm = (alm₁.comm == alm₂.comm) ? alm₁.comm : throw(DomainError(0, "Communicators must match"))
+    comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     res = localdot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}})
-    MPI.Barrier(comm)
+    MPI.Barrier(comm) #FIXME: necessary??
     print("task $(MPI.Comm_rank(comm)), dot = $res")
     MPI.Allreduce(res, +, comm) #we sum together all the local results on each task
 end

@@ -1,5 +1,22 @@
 using MPI #then remove, it's already in HealpixMPI.jl
 using Healpix
+
+
+#################### WAITING FOR NEW Healpix VERSION:
+
+
+function each_ell_idx(alm::Alm{Complex{T}}, m::Integer) where {T <: Number}
+    (m <= alm.mmax) || throw(DomainError(m, "`m` is greater than mmax"))
+    [i for i in almIndex(alm, m, m):almIndex(alm, alm.lmax, m)]
+end
+
+function each_ell_idx(alm::Alm{Complex{T}}, ms::AbstractArray{I, 1}) where {T <: Number, I <: Integer}
+    reduce(vcat, [each_ell_idx(alm, m) for m in ms])
+end
+
+
+#########################################################
+
 """ struct AlmInfoMPI{I <: Integer}
 
 Information describing an MPI-distributed subset of `Alm`, contained in a `DistributedAlm`.
@@ -143,7 +160,7 @@ function ScatterAlm_RR!(
     d_alm.info.mmax = alm.mmax
     d_alm.info.maxnm = get_nm_RR(alm.mmax, 0, c_size) #due to RR the maxnm is the one on the task 0
     d_alm.info.mval = mval
-    d_alm.info.mstart = make_mstart_complex(lmax, stride, mval)
+    d_alm.info.mstart = make_mstart_complex(alm.lmax, stride, mval)
     println("DistributedAlm: I am task $c_rank of $c_size, I work on m's $mval of $(alm.mmax) \n")
 end
 
@@ -172,7 +189,7 @@ end
 """
 function MPI.Scatter!(
     in_alm::Alm{T,Array{T,1}},
-    out_d_alm::DistributedAlm{T,I},
+    out_d_alm::DistributedAlm{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -196,7 +213,7 @@ end
 #non root node
 function MPI.Scatter!(
     in_alm::Nothing,
-    out_d_alm::DistributedAlm{T,I},
+    out_d_alm::DistributedAlm{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -217,13 +234,13 @@ end
 function MPI.Scatter!(
     in_alm,
     out_d_alm::DistributedAlm{T,I},
-    comm::MPI.Comm,
+    comm::MPI.Comm;
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T<:Number, I<:Integer}
     out_d_alm.info.comm = comm #overwrites the Comm in the d_alm
-    MPI.Scatter!(in_alm, out_d_alm, strategy, root, clear)
+    MPI.Scatter!(in_alm, out_d_alm, strategy = strategy, root = root, clear = clear)
 end
 
 ## GATHER
@@ -244,7 +261,7 @@ function GatherAlm_RR_root!(
     local_nm = length(local_mval)
     local_mstart = d_alm.info.mstart
     displ_shift = 0
-    @inbounds for mi in 1:d_alm.maxnm #loop over the "Robin's Rounds"
+    @inbounds for mi in 1:d_alm.info.maxnm #loop over the "Robin's Rounds"
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
@@ -322,7 +339,7 @@ end
 """
 function MPI.Gather!(
     in_d_alm::DistributedAlm{T,I},
-    out_alm::Alm{T,Array{T,1}},
+    out_alm::Alm{T,Array{T,1}};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -343,7 +360,7 @@ end
 #allows non-root tasks to pass nothing as output
 function MPI.Gather!(
     in_d_alm::DistributedAlm{T,I},
-    out_alm::Nothing,
+    out_alm::Nothing;
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -352,7 +369,7 @@ function MPI.Gather!(
     (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
 
     if strategy == :RR #Round Robin, can add more.
-        GatherAlm_RR_rest!(in_d_alm, root) #on root out_alm cannot be nothing
+        GatherAlm_RR_rest!(in_d_alm, root, strategy = strategy, root = root, clear = clear) #on root out_alm cannot be nothing
     end
     if clear
         in_d_alm = nothing
@@ -423,7 +440,7 @@ end
 """
 function MPI.Allgather!(
     in_d_alm::DistributedAlm{T,I},
-    out_alm::Alm{T,Array{T,1}},
+    out_alm::Alm{T,Array{T,1}};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false

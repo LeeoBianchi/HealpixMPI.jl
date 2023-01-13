@@ -45,7 +45,7 @@ GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
     If no `rings` array is passed, the computation is performed on all the rings deducted from `res`.
 """
 function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer}
-    theta = Vector{Float64}(undef, nrings)
+    theta = Vector{Float64}(undef, length(rings))
     ringinfo = RingInfo(0, 0, 0, 0, 0)
     @inbounds for i in 1:length(rings)
         getringinfo!(res, rings[i], ringinfo; full=true)
@@ -94,9 +94,7 @@ function Healpix.numOfRings(nside::Integer)
     4*nside - 1
 end
 
-function get_equator_idx(nside::Integer)
-    2*nside
-end
+get_equator_idx(nside::Integer) = 2*nside
 get_equator_idx(res::Resolution) = get_equator_idx(res.nside)
 
 """
@@ -107,8 +105,21 @@ function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
     (eq_idx + c_size - 1 - task_rank) ÷ c_size * 2 - iszero(task_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
 end
-get_nrings_RR(nside::Integer, task_rank::Integer, c_size::Integer) = get_nrings_RR(eq_idx = get_equator_idx(nside), task_rank, c_size)
-get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(res.nside, task_rank, c_size)
+
+get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(get_equator_idx(res.nside), task_rank, c_size)
+
+""" get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) where {T <: Real, AA <: AbstractArray{T,1}}
+    get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}}
+
+    Returns the pixels in `map` corresponding to the given `ring_info` or `ring_idx`.
+"""
+function get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) where {T <: Real, AA <: AbstractArray{T,1}}
+    first_pix_idx = ring_info.firstPixIdx
+    map[first_pix_idx:(first_pix_idx + ring_info.numOfPixels - 1)]
+end
+
+get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}} =
+    get_ring_pixels(map, getringinfo(map.resolution, ring_idx; full=false))
 
 """
     Return array of rings on specified task (0-base index) given total map resolution
@@ -159,7 +170,7 @@ function ScatterMap_RR!(
     nphi = Vector{Float64}(undef, nrings)
     ringinfo = RingInfo(0, 0, 0, 0, 0) #initialize ring info object
     j = !iszero(c_rank) #index correction factor for when we have the equator (c_rank = 0, j=0), or not (c_rank > 0, j = 1)
-    rstart = 1 #keeps track of the indexes, to compute rstarts NOTE:(1-based)!!
+    rst = 1 #keeps track of the indexes, to compute rstarts NOTE:(1-based)!!
     eq_idx = get_equator_idx(res)
     @inbounds for i in 1:nrings
         k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
@@ -169,9 +180,9 @@ function ScatterMap_RR!(
         theta[i] = ringinfo.colatitude_rad
         phi0[i] = pix2ang(map, ringinfo.firstPixIdx)[2]
         pixels[i] = get_ring_pixels(map, ringinfo)
-        rstart[i] = rstart
+        rstart[i] = rst
         nphi[i] = ringinfo.numOfPixels
-        rstart += ringinfo.numOfPixels
+        rst += ringinfo.numOfPixels
     end
     pixels = reduce(vcat, pixels) #FIXME:Is this the most efficient way?
     println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res)) \n")
@@ -212,7 +223,7 @@ end
 """
 function MPI.Scatter!(
     in_map::HealpixMap{T,RingOrder,Array{T,1}},
-    out_d_map::DistributedMap{T},
+    out_d_map::DistributedMap{T};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -235,7 +246,7 @@ end
 
 function MPI.Scatter!(
     in_map::Nothing,
-    out_d_map::DistributedMap{T,I},
+    out_d_map::DistributedMap{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -254,15 +265,15 @@ function MPI.Scatter!(
 end
 
 function MPI.Scatter!(
-    in_map::Nothing,
+    in_map,
     out_d_map::DistributedMap{T,I},
-    comm::MPI.Comm,
+    comm::MPI.Comm;
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
     ) where {T <: Real, I <: Integer}
     out_d_map.info.comm = comm #overwrites comm in d_map
-    MPI.Scatter!(in_map, out_d_map, strategy, root, clear)
+    MPI.Scatter!(in_map, out_d_map, strategy = strategy, root = root, clear = clear)
 end
 
 #######################################################################
@@ -358,7 +369,7 @@ end
 """
 function MPI.Gather!(
     in_d_map::DistributedMap{T,I},
-    out_map::HealpixMap{T,RingOrder,Array{T,1}},
+    out_map::HealpixMap{T,RingOrder,Array{T,1}};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -380,7 +391,7 @@ end
 #allows to pass nothing as output map on non-root tasks
 function MPI.Gather!(
     in_d_map::DistributedMap{T,I},
-    out_map::Nothing,
+    out_map::Nothing;
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -452,7 +463,7 @@ end
 """
 function MPI.Allgather!(
     in_d_map::DistributedMap{T,I},
-    out_map::HealpixMap{T,RingOrder,Array{T,1}},
+    out_map::HealpixMap{T,RingOrder,Array{T,1}};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false

@@ -1,4 +1,4 @@
-include("sht.jl")
+include("../src/sht.jl")
 
 MPI.Init()
 
@@ -31,6 +31,5 @@ MPI.Gather!(d_map, out_map)
 out_map
 
 if crank == root
-    alm2map(test_alm, 2).pixels
-    @show isapprox(out_map.pixels, alm2map(test_alm, 2).pixels)
+    @show isapprox(out_map.pixels, alm2map(test_alm, 2).pixels) #replace @show with test
 end

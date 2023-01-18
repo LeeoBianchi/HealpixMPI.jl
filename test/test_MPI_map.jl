@@ -4,7 +4,7 @@ using Healpix
 using MPI
 using Test
 
-include("map.jl")
+include("../src/map.jl")
 
 #################################################################
 
@@ -43,4 +43,4 @@ else
 end
 
 #test Allgather!
-Test.@test res_map_alm == test_map_all
+Test.@test res_map_all == test_map_all

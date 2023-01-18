@@ -296,7 +296,7 @@ function GatherAlm_RR_rest!(
     local_mval = d_alm.info.mval
     local_nm = length(local_mval)
     local_mstart = d_alm.info.mstart
-    @inbounds for mi in 1:d_alm.maxnm #loop over the "Robin's Rounds"
+    @inbounds for mi in 1:d_alm.info.maxnm #loop over the "Robin's Rounds"
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
@@ -369,7 +369,7 @@ function MPI.Gather!(
     (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
 
     if strategy == :RR #Round Robin, can add more.
-        GatherAlm_RR_rest!(in_d_alm, root, strategy = strategy, root = root, clear = clear) #on root out_alm cannot be nothing
+        GatherAlm_RR_rest!(in_d_alm, root) #on root out_alm cannot be nothing
     end
     if clear
         in_d_alm = nothing
@@ -394,7 +394,7 @@ function AllgatherAlm_RR!(
     local_nm = length(local_mval)
     local_mstart = d_alm.info.mstart
     displ_shift = 0
-    @inbounds for mi in 1:d_alm.maxnm #loop over the "Robin's Rounds"
+    @inbounds for mi in 1:d_alm.info.maxnm #loop over the "Robin's Rounds"
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1

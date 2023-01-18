@@ -34,7 +34,7 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
         filled += send_count
     end
     #2) communicate
-    print("on task $(MPI.Comm_rank(comm)), we have $send_counts ### $rec_counts")
+    println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
     received_array = MPI.Alltoallv(send_array, send_counts, rec_counts, comm)
 
     #3) unpack what we have received and fill out_leg
@@ -52,16 +52,15 @@ end
 #for now we only support spin-0
 function alm2map!(d_alm::DistributedAlm{Complex{T},I}, d_map::DistributedMap{T,I}; nthreads = 0) where {T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
-    all_theta = d_map.info.thetatot #global list of theta, ordered N->S
 
     #we first compute the leg's for local m's and all the rings (orderd fron N->S)
     #FIXME: maybe implement fast type conversion inside Ducc0.sht_alm2leg
-    in_leg = Ducc0.Sht.alm2leg(reshape(d_alm.alm, length(d_alm.alm), 1), UInt64(0), UInt64(d_alm.info.lmax), Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, all_theta, UInt64(1))
+    in_leg = Ducc0.Sht.alm2leg(reshape(d_alm.alm, length(d_alm.alm), 1), UInt64(0), UInt64(d_alm.info.lmax), Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, UInt64(1))
     #we transpose the leg's over tasks
     #FIXME: maybe add leg as a field of Distributed* classes, so we avoid creation every time
     out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1) # tot_nm * loc_nr Matrix.
     MPI.Barrier(comm)
-    #print("on task $(MPI.Comm_rank(comm)), we have $(size(in_leg)) ### $(size(out_leg))")
+    print("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
     communicate_alm2map!(in_leg, out_leg, comm)
 
     #then we use them to get the map
@@ -70,51 +69,55 @@ end
 
 function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm) where {T<:Real}
     c_size = MPI.Comm_size(comm)
-    loc_nm = size(in_leg, 1)  #local nm
-    tot_nm = size(out_leg, 1) #global nm
-    loc_nr = size(out_leg, 2) #local n rings
-    tot_nr = size(in_leg, 2)  #global n rings
+    tot_nm = size(in_leg, 1)  #global nm
+    loc_nm = size(out_leg, 1) #local nm
+    loc_nr = size(in_leg, 2) #local n rings
+    tot_nr = size(out_leg, 2)  #global n rings
     eq_index = (tot_nr + 1) ÷ 2
     tot_mmax = tot_nm-1
 
     #1) we pack the coefficients to send
     send_array = Vector{ComplexF64}(undef, size(in_leg, 1)*size(in_leg, 2))
-    rings_received = Vector{Float64}(undef, tot_nr) #Array storing the ring indexes in the order in which the rings are received, maybe implement similar for m's in communicate_alm2map
+    rings_received = Vector{Int64}(undef, tot_nr) #Array storing the ring indexes in the order in which the rings are received, maybe implement similar for m's in communicate_alm2map
     send_counts = Vector{Int64}(undef, c_size)
     rec_counts = Vector{Int64}(undef, c_size)
-    filled = 1 #we keep track of how much of send_array we already have filled
+    filled_leg = 1 #we keep track of how much of send_array we already have filled
+    filled_ring = 1 #we keep track of how much of rings_received we already have filled
     for t_rank in 0:c_size-1
         local_chunk = reduce(vcat, in_leg[get_mval_RR(tot_mmax, t_rank, c_size) .+ 1, :, 1])
         send_count = length(local_chunk)
-        rings_received #FIXME: implement filling here.
-        send_array[filled:filled+send_count-1] = local_chunk
+        send_array[filled_leg:filled_leg+send_count-1] = local_chunk
         send_counts[t_rank+1] = send_count
-        rec_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size) #local nm x nrings on task t_rank
+        nring_t = get_nrings_RR(eq_index, t_rank, c_size) #nrings on task t_rank
+        rec_count = loc_nm * nring_t
         rec_counts[t_rank+1] = rec_count
-        filled += send_count
+        rings_received[filled_ring:filled_ring+nring_t-1] = get_rindexes_RR(nring_t, eq_index, t_rank, c_size) #ring indexes sent from task t_rank
+        filled_leg += send_count
+        filled_ring += nring_t
     end
 
     #2) communicate
-    println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
-
+    #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
     received_array = MPI.Alltoallv(send_array, send_counts, rec_counts, comm)
 
     #3) unpack what we have received and fill out_leg
-    out_leg = reshape(received_array, loc_nm, :)
+    out_leg[:,:,1] = reshape(received_array, loc_nm, :)
+    rings_received
 end
 
 function adjoint_alm2map!(d_map::DistributedMap{T,I}, d_alm::DistributedAlm{Complex{T},I}; nthreads = 0) where {T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
 
-    in_leg = Ducc0.map2leg(reshape(d_map.pixels, length(d_map.pixels), 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart .- 1), 1, UInt64(1))
+    in_leg = Ducc0.Sht.map2leg(reshape(d_map.pixels, length(d_map.pixels), 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart .- 1), d_alm.info.mmax + 1, 1, Unsigned(1))
     #we transpose the leg's over tasks
     #FIXME: maybe add leg as a field of Distributed* classes, so we avoid creation every time
     out_leg = Array{ComplexF64,3}(undef, length(d_alm.info.mval), numOfRings(d_map.info.nside), 1) # loc_nm * tot_nr Matrix.
     MPI.Barrier(comm)
-    print("on task $(MPI.Comm_rank(comm)), we have $(size(in_leg)) ### $(size(out_leg))")
-    communicate_alm2map!(in_leg, out_leg, d_map.info.nside, comm)
+    print("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
+    rings_received = communicate_map2alm!(in_leg, out_leg, comm)
 
     #then we use them to get the map
-    #FIXME: use received_rings to get the theta array of colatitudes ordered by task - RR
-    d_alm.alm = Ducc0.Sht.leg2alm(out_leg, Unsigned(0), Unsigned(d_alm.info.lmax), Csize_t.(d_alm.info.mval), Csize_t.(d_alm.info.mstart), 1, theta, Unsigned(1))
+    theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task
+
+    d_alm.alm = Ducc0.Sht.leg2alm(out_leg, UInt64(0), UInt64(d_alm.info.lmax), Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, UInt64(1))[:,1]
 end

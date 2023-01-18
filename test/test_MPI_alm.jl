@@ -4,7 +4,7 @@ using Libdl
 using libsharp2_jll
 using Test
 
-include("alm.jl")
+include("../src/alm.jl")
 
 #################################################################
 

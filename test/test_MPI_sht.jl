@@ -1,3 +1,6 @@
+using Healpix
+using MPI
+using Test
 include("../src/sht.jl")
 
 MPI.Init()
@@ -22,15 +25,23 @@ MPI.Scatter!(test_alm, d_alm, comm)
 
 MPI.Barrier(comm)
 
+# TEST ALM2MAP DIRECTION
+
+alm2map!(d_alm, d_map; nthreads = 1)
+out_map = deepcopy(test_map)
+MPI.Gather!(d_map, out_map)
+
+if crank == root
+    Test.@test isapprox(out_map.pixels, alm2map(test_alm, 2).pixels) #replace @show with test
+end
+
+# ADJOINT DIRECTION:
 adjoint_alm2map!(d_map, d_alm; nthreads = 1)
 out_alm = deepcopy(test_alm)
 out_alm2 = deepcopy(test_alm)
 MPI.Gather!(d_alm, out_alm)
 
-out_alm
-
-using Healpix, Libsharp
-
+#FIXME: remove when it will be available in Healpix.jl
 function adjoint_alm2map!(
     map::HealpixMap{Float64,RingOrder,Array{Float64,1}},
     alm::Alm{ComplexF64,Array{ComplexF64,1}}
@@ -50,5 +61,5 @@ end
 
 if crank == root
     adjoint_alm2map!(test_map, out_alm2)
-    @show isapprox(out_alm.alm, out_alm2.alm)
+    Test.@test isapprox(out_alm.alm, out_alm2.alm)
 end

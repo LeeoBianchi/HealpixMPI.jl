@@ -11,3 +11,9 @@ end
     res = run(cm)
     @test success(res)
 end
+
+@testset "SHT: alm2map & adjoint" begin
+    cm = @cmd "mpirun -n 2 julia test_MPI_alm.jl"
+    res = run(cm)
+    @test success(res)
+end

@@ -1,5 +1,3 @@
-#NOTE: this script should end up in HealpixMPI/test
-
 using Healpix
 using MPI
 using Test

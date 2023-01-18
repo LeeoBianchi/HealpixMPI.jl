@@ -36,8 +36,10 @@ end
 GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
     GeomInfoMPI{T,I}(nside, maxnr, ring2theta(Resolution(nside)), rings, rstart, nphi, theta, phi0, comm)
 
+GeomInfoMPI{T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), comm)
+GeomInfoMPI(comm::MPI.Comm) = GeomInfoMPI{Float64, Int64}(comm)
 #empty constructor
-GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
+GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), comm)
 GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
 
 """
@@ -86,6 +88,9 @@ end
 DistributedMap(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<: Integer} =
     DistributedMap{T,I}(pixels, info)
 
+DistributedMap{T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}(comm))
+DistributedMap(comm::MPI.Comm) = DistributedMap{Float64, Int64}(comm)
+
 #empty constructors
 DistributedMap{T,I}() where {T<:Real, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
 DistributedMap() = DistributedMap{Float64, Int64}()
@@ -126,33 +131,27 @@ get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: 
     and communicator size, ordered from the equator to the poles alternating N/S,
     according to Round Robin.
 """
-function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
-    eq_idx = get_equator_idx(nside)
-    nrings = get_nrings_RR(eq_idx, t_rank, c_s)
-    rings = Vector{Int}(undef, nrings)
-    @inbounds for i in 1:nrings
-        k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
-        ring = eq_idx - (-1)^(i + j) * (c_rank + k *c_size) #(-1)^i alternates rings north/south
-        rings[i] = ring
-    end
-    rings
-end
-
 function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
     rings = Vector{Int}(undef, local_nrings)
     j = !iszero(t_rank)
     @inbounds for i in 1:local_nrings
         k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
-        ring = eq_idx - (-1)^(i + j) * (t_rank + k *c_size) #(-1)^i alternates rings north/south
-        rings[i] = ring
+        rings[i] = eq_idx - (-1)^(i + j) * (t_rank + k *c_size) #(-1)^i alternates rings north/south
     end
     rings
+end
+
+function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
+    eq_idx = get_equator_idx(nside)
+    nrings = get_nrings_RR(eq_idx, t_rank, c_size)
+    rings = Vector{Int}(undef, nrings)
+    get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
 end
 
 #FIXME: create version which does not re-compute info in d_map
 function ScatterMap_RR!(
     map::HealpixMap{T,RingOrder,Array{T,1}},
-    d_map::DistributedMap{T}
+    d_map::DistributedMap{T,I}
     ) where {T <: Real, I <: Integer}
 
     stride = 1
@@ -186,7 +185,7 @@ function ScatterMap_RR!(
     end
     pixels = reduce(vcat, pixels) #FIXME:Is this the most efficient way?
     println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res)) \n")
-    maxnr = (eq_idx%c_size == 0) ? get_nrings_RR(res, 0, c_size) : get_nrings_RR(res, 0, c_size)+1
+    maxnr = get_nrings_RR(res, 0, c_size)+1
     d_map.pixels = pixels
     d_map.info.comm = comm
     d_map.info.nside = res.nside
@@ -223,7 +222,7 @@ end
 """
 function MPI.Scatter!(
     in_map::HealpixMap{T,RingOrder,Array{T,1}},
-    out_d_map::DistributedMap{T};
+    out_d_map::DistributedMap{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -257,7 +256,7 @@ function MPI.Scatter!(
     in_map = MPI.bcast(nothing, root, comm)
 
     if strategy == :RR #Round Robin, can add more.
-        ScatterMap_RR!(in_map, out_d_map, comm)
+        ScatterMap_RR!(in_map, out_d_map)
     end
     if clear
         in_map = nothing #free unnecessary copies of map

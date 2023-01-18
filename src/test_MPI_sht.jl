@@ -15,15 +15,22 @@ else
     test_alm = nothing
 end
 
-d_map = DistributedMap()
+d_map = DistributedMap(comm)
 MPI.Scatter!(test_map, d_map, comm)
-d_alm = DistributedAlm()
+d_alm = DistributedAlm(comm)
 MPI.Scatter!(test_alm, d_alm, comm)
 
-alm2map!(d_alm, d_map, nthreads = 1)
-#FIXME: check rstart array
-alm2map(test_alm, 2)
+@show d_alm
 
-get_nm_RR(5, 0, 1)
+MPI.Barrier(comm)
 
-Array{Float64, 3}()
+alm2map!(d_alm, d_map; nthreads = 1)
+out_map = deepcopy(test_map)
+MPI.Gather!(d_map, out_map)
+
+out_map
+
+if crank == root
+    alm2map(test_alm, 2).pixels
+    @show isapprox(out_map.pixels, alm2map(test_alm, 2).pixels)
+end

@@ -43,10 +43,10 @@ GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T
 GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
 
 """
-    Create an array of the colatitude in radians (theta) of each ring in `rings` for a map with resolution `res`.
+    Create an array of the colatitude in radians (theta) of each ring index in `rings` for a map with resolution `res`.
     If no `rings` array is passed, the computation is performed on all the rings deducted from `res`.
 """
-function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer}
+function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer} #maybe add this to Healpix.jl
     theta = Vector{Float64}(undef, length(rings))
     ringinfo = RingInfo(0, 0, 0, 0, 0)
     @inbounds for i in 1:length(rings)
@@ -55,8 +55,9 @@ function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer}
     end
     theta
 end
-
 ring2theta(res::Resolution) = ring2theta(Vector{Int}(1:res.nsideTimesFour-1), res)
+#single ring passed as int:
+ring2theta(ring::Integer, res::Resolution) = getringinfo(res, ring; full=true).colatitude_rad
 
 """
     struct DistributedMap{T<:Number, I<:Integer}
@@ -99,6 +100,7 @@ function Healpix.numOfRings(nside::Integer)
     4*nside - 1
 end
 
+#maybe add this to Healpix.jl
 get_equator_idx(nside::Integer) = 2*nside
 get_equator_idx(res::Resolution) = get_equator_idx(res.nside)
 
@@ -122,7 +124,7 @@ function get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) w
     first_pix_idx = ring_info.firstPixIdx
     map[first_pix_idx:(first_pix_idx + ring_info.numOfPixels - 1)]
 end
-
+# maybe add this to Healpix.jl
 get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}} =
     get_ring_pixels(map, getringinfo(map.resolution, ring_idx; full=false))
 

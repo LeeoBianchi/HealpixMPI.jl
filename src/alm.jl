@@ -1,9 +1,7 @@
 using MPI #then remove, it's already in HealpixMPI.jl
 using Healpix
 
-
 #################### WAITING FOR NEW Healpix VERSION:
-
 
 function each_ell_idx(alm::Alm{Complex{T}}, m::Integer) where {T <: Number}
     (m <= alm.mmax) || throw(DomainError(m, "`m` is greater than mmax"))
@@ -13,7 +11,6 @@ end
 function each_ell_idx(alm::Alm{Complex{T}}, ms::AbstractArray{I, 1}) where {T <: Number, I <: Integer}
     reduce(vcat, [each_ell_idx(alm, m) for m in ms])
 end
-
 
 #########################################################
 

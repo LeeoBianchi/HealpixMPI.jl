@@ -475,7 +475,7 @@ function localdot(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{C
     @inbounds for mi in 1:nm #maybe run in parallel with JuliaThreads
         m = mval[mi]
         i1 = mstart[mi] + 1 + m #+1 because Julia is 1-based
-        i2 = i1 + lmax - m #this gives index range for each ell for given m
+        i2 = i1 + lmax - m #this gives index range for each ell, for given m
         if (m == 0)
             @inbounds for i in i1:i2
                 res_m0 += real(alm₁.alm[i]) * real(alm₂.alm[i]) #if m=0 we have no imag part

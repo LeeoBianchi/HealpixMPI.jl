@@ -1,6 +1,8 @@
 using Healpix
 using MPI
 using Test
+using LinearAlgebra
+
 
 include("../src/alm.jl")
 
@@ -28,16 +30,6 @@ d_alm = DistributedAlm()
 
 MPI.Scatter!(test_alm, d_alm, comm)
 
-MPI.Gather!(d_alm, res_alm)
-
-MPI.Allgather!(d_alm, res_alm_all, clear=true)
-
 MPI.Barrier(comm)
 
-if crank == root
-    Test.@test test_alm.alm == res_alm.alm
-else
-    Test.@test res_alm == nothing
-end
-res_alm_all.alm
-Test.@test res_alm_all.alm == test_alm_all.alm #FIXME: check why allgather doesn't work
+Test.@test d_alm ⋅ d_alm == 6531.0

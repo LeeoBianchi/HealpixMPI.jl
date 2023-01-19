@@ -60,7 +60,7 @@ function alm2map!(d_alm::DistributedAlm{Complex{T},I}, d_map::DistributedMap{T,I
     #FIXME: maybe add leg as a field of Distributed* classes, so we avoid creation every time
     out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1) # tot_nm * loc_nr Matrix.
     MPI.Barrier(comm)
-    print("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
+    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
     communicate_alm2map!(in_leg, out_leg, comm)
 
     #then we use them to get the map
@@ -97,7 +97,7 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     end
 
     #2) communicate
-    #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
+    println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
     received_array = MPI.Alltoallv(send_array, send_counts, rec_counts, comm)
 
     #3) unpack what we have received and fill out_leg
@@ -113,7 +113,7 @@ function adjoint_alm2map!(d_map::DistributedMap{T,I}, d_alm::DistributedAlm{Comp
     #FIXME: maybe add leg as a field of Distributed* classes, so we avoid creation every time
     out_leg = Array{ComplexF64,3}(undef, length(d_alm.info.mval), numOfRings(d_map.info.nside), 1) # loc_nm * tot_nr Matrix.
     MPI.Barrier(comm)
-    print("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
+    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
     rings_received = communicate_map2alm!(in_leg, out_leg, comm)
 
     #then we use them to get the map

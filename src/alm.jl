@@ -124,11 +124,11 @@ end
 
 """ make_mstart_complex(lmax::Integer, stride::Integer, mval::AbstractArray{T}) where T <: Integer
 
-    Computes the 0-based `mstart` array given any `mval` and `lmax` for `Alm` in complex
+    Computes the 1-based `mstart` array given any `mval` and `lmax` for `Alm` in complex
     representation.
 """
 function make_mstart_complex(lmax::Integer, stride::Integer, mval::AbstractArray{T}) where T <: Integer
-    idx = 0 #tracks the number of 'consumed' elements so far; need to correct by m
+    idx = 1 #tracks the number of 'consumed' elements so far; need to correct by m
     mi = 1 #index of mstart array
     mstart = Vector{Int}(undef, length(mval))
     for m in mval
@@ -262,7 +262,7 @@ function GatherAlm_RR_root!(
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
-            i1 = local_mstart[mi] + 1 + m
+            i1 = local_mstart[mi] + m
             i2 = i1 + lmax - m
             alm_chunk = @view d_alm.alm[i1:i2] #@view speeds up the slicing
         else
@@ -297,7 +297,7 @@ function GatherAlm_RR_rest!(
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
-            i1 = local_mstart[mi] + 1 + m  #FIXME: embed this in a getindex function (?)
+            i1 = local_mstart[mi] + m
             i2 = i1 + lmax - m
             alm_chunk = @view d_alm.alm[i1:i2] #get the chunk of alm to send to root
         else
@@ -395,7 +395,7 @@ function AllgatherAlm_RR!(
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
-            i1 = local_mstart[mi] + 1 + m  #FIXME: embed this in a getindex function with @views
+            i1 = local_mstart[mi] + m
             i2 = i1 + lmax - m
             alm_chunk = @view d_alm.alm[i1:i2] #@view speeds up the slicing
         else
@@ -471,7 +471,7 @@ function localdot(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{C
     res_rest = 0
     @inbounds for mi in 1:nm #maybe run in parallel with JuliaThreads
         m = mval[mi]
-        i1 = mstart[mi] + 1 + m #+1 because Julia is 1-based
+        i1 = mstart[mi] + m
         i2 = i1 + lmax - m #this gives index range for each ell, for given m
         if (m == 0)
             @inbounds for i in i1:i2

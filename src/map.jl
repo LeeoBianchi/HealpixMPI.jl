@@ -7,7 +7,7 @@ An `GeomInfoMPI` type contains:
 - `maxnr`: maximum number of rings in the subsets, over the tasks involved.
 - `comm`: MPI communicator used.
 - `rings`: array of the ring indexes (w.r.t. the whole map) contained in the subset.
-- `rstart`: array containing the index of the first pixel of each ring contained in the subset.
+- `rstart`: array containing the 1-based index of the first pixel of each ring contained in the subset.
 - `nphi`: array containing the number of pixels in every ring contained in the subset.
 - `theta`: array of colatitudes (in radians) of the rings contained in the subset.
 - `phi0`: array containing the values of the azimuth (in radians) of the first pixel in every ring.

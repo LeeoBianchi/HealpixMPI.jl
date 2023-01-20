@@ -496,7 +496,7 @@ function dot(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Comple
 
     res = localdot(alm₁, alm₂)
     MPI.Barrier(comm) #FIXME: necessary??
-    print("task $(MPI.Comm_rank(comm)), dot = $res")
+    println("task $(MPI.Comm_rank(comm)), dot = $res")
     MPI.Allreduce(res, +, comm) #we sum together all the local results on each task
 end
 
@@ -573,16 +573,16 @@ function almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:I
     mval = alm.info.mval
     fl_size = length(fl)
 
-    if lmax <= fl_size
+    if lmax + 1 <= fl_size
         fl = fl[1:lmax+1]
     else
-        fl = [fl; zeros(lmax - fl_size)]
+        fl = [fl; zeros(lmax + 1 - fl_size)]
     end
-
+    i = 1
     for m in mval
         for l = m:lmax
-            i = almIndex(alm, l, m)
             alm.alm[i] = alm.alm[i]*fl[l+1]
+            i += 1
         end
     end
 end

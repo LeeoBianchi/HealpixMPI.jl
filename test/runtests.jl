@@ -29,3 +29,9 @@ end
     res = run(cm)
     @test success(res)
 end
+
+@testset "Power spectrum functions: alm2cl & synalm!" begin
+    cm = @cmd "mpirun -n 3 julia test_MPI_cl.jl"
+    res = run(cm)
+    @test success(res)
+end

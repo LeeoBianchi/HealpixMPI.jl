@@ -503,62 +503,24 @@ end
 
 import Base: +, -, *, /
 
-""" +(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
++(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer} = 
+    DistributedAlm{Complex{T},I}(alm₁.alm .+ alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+-(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer} = 
+    DistributedAlm{Complex{T},I}(alm₁.alm .- alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+*(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer} = 
+    DistributedAlm{Complex{T},I}(alm₁.alm .* alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+/(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer} = 
+    DistributedAlm{Complex{T},I}(alm₁.alm ./ alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
 
-    Perform the element-wise sum in a_ℓm space.
-    A new `Alm` object is returned.
-"""
-function +(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-    (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
+*(alm₁::DistributedAlm{Complex{T},I}, c::Number) where {T<:Real, I<:Integer} = 
+    DistributedAlm{Complex{T},I}(alm₁.alm .* c, alm₁.info)
+*(c::Number, alm₁::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer} = alm₁ * c
+/(alm₁::DistributedAlm{Complex{T},I}, c::Number) where {T<:Real, I<:Integer} = 
+    DistributedAlm{Complex{T},I}(alm₁.alm ./ c, alm₁.info)
 
-    res_alm = deepcopy(alm₁)
-
-     @inbounds for i in 1:length(res_alm.alm)
-        res_alm.alm[i] = alm₁.alm[i] + alm₂.alm[i]
-    end
-    res_alm
-end
-
-""" -(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-
-    Perform the element-wise subtraction in a_ℓm space.
-    A new `Alm` object is returned.
-"""
-function -(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-    (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
-
-    res_alm = deepcopy(alm₁)
-
-     @inbounds for i in 1:length(res_alm.alm)
-        res_alm.alm[i] = alm₁.alm[i] - alm₂.alm[i]
-    end
-    res_alm
-end
-
-""" *(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-
-    Perform the element-wise product in a_ℓm space.
-    A new `Alm` object is returned.
-"""
-function *(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-    (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
-    lmax = alm₁.info.lmax
-
-    #first part of the alm arrays, where for m=0 whe have alm^R_l,0 = alm^C_l,0,
-    #and thus only real values are interesting (imag. should be 0)
-    res_alm = deepcopy(alm₁)
-    @inbounds for i in 1:lmax+1
-        res_alm.alm[i] = real(alm₁.alm[i]) * real(alm₂.alm[i])
-    end
-    #we then compute the rest, where alm^R_l,m = √2 Re{alm^C_l,m}, alm^R_l,-m = √2Im{alm^C_l,m}
-    @inbounds for i in lmax+2:length(alm₁.alm)
-        res_alm.alm[i] = alm₁.alm[i] * alm₂.alm[i]
-    end
-    res_alm
-end
 
 """
-    almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}}
+    almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}}
 
 Multiply IN-PLACE a subset of a_ℓm in the form of `DistributedAlm` by a vector `fl`
 representing an ℓ-dependent function.
@@ -568,7 +530,7 @@ representing an ℓ-dependent function.
 - `fl::AbstractVector{T}`: The array giving the factor f_ℓ by which to multiply a_ℓm
 
 """ #FIXME: then import it from Healpix.jl and overlad it when it will be available
-function almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}}
+function almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}}
 
     lmax = alm.info.lmax
     mval = alm.info.mval
@@ -587,7 +549,7 @@ function almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:I
 end
 
 """
-    almxfl(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}}
+    almxfl(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}}
 
 Multiply a subset of a_ℓm in the form of `DistributedAlm` by a vector b_ℓ representing
 an ℓ-dependent function, without changing the a_ℓm passed in input.
@@ -599,72 +561,24 @@ an ℓ-dependent function, without changing the a_ℓm passed in input.
 #RETURNS
 - `Alm{Complex{T}}`: The result of a_ℓm * f_ℓ.
 """ #FIXME: idem..
-function almxfl(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}}
+function almxfl(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}}
     alm_new = deepcopy(alm)
     almxfl!(alm_new, fl)
     alm_new
 end
 
-""" *(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}}
+""" *(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}}
 
     Perform the product of a `DistributedAlm` object by a function of ℓ in a_ℓm space.
     Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DistributedAlm`
     object is returned.
 """
-*(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}} = almxfl(alm, fl)
+*(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}} = almxfl(alm, fl)
+*(fl::AA, alm::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}} = alm*fl
 
-""" *(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-
-    Perform the element-wise product of an `DistributedAlm` object by a constant in a_ℓm space.
-"""
-function *(alm₁::DistributedAlm{Complex{T},I}, c::Number) where {T<:Real, I<:Integer}
-    res_alm = deepcopy(alm₁)
-
-    @inbounds for i in 1:length(alm₁.alm)
-        res_alm.alm[i] = alm₁.alm[i] * c
-    end
-    res_alm
-end
-
-""" /(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-
-    Perform the element-wise product in a_ℓm space.
-    A new `Alm` object is returned.
-"""
-function /(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{Complex{T},I}) where {T<:Real, I<:Integer}
-    (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
-    lmax = alm₁.info.lmax
-
-    #first part of the alm arrays, where for m=0 whe have alm^R_l,0 = alm^C_l,0,
-    #and thus only real values are interesting (imag. should be 0)
-    res_alm = deepcopy(alm₁)
-    @inbounds for i in 1:lmax+1
-        res_alm.alm[i] = real(alm₁.alm[i]) / real(alm₂.alm[i])
-    end
-    #we then compute the rest, where alm^R_l,m = √2 Re{alm^C_l,m}, alm^R_l,-m = √2Im{alm^C_l,m}
-    @inbounds for i in lmax+2:length(alm₁.alm)
-        res_alm.alm[i] = alm₁.alm[i] / alm₂.alm[i]
-    end
-    res_alm
-end
-
-""" /(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}}
+""" /(alm::DistributedAlm{Complex{T},I}, fl::AA) where {{T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}}
 
     Perform an element-wise division by a function of ℓ in a_ℓm space.
     A new `Alm` object is returned.
 """
-/(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, AA<:AbstractArray{T,1}} = almxfl(alm, 1. ./ fl)
-
-""" /(alm₁::DistributedAlm{Complex{T},I}, c::Number) where {T<:Real, I<:Integer}
-
-    Perform an element-wise division by a constant in a_ℓm space.
-    A new `Alm` object is returned.
-"""
-function /(alm₁::DistributedAlm{Complex{T},I}, c::Number) where {T<:Real, I<:Integer}
-    res_alm = deepcopy(alm₁)
-
-    @inbounds for i in eachindex(alm₁)
-        res_alm.alm[i] = alm₁.alm[i] / c
-    end
-    res_alm
-end
+/(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:Integer, N<:Number, AA<:AbstractArray{N,1}} = almxfl(alm, 1. ./ fl)

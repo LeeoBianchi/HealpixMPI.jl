@@ -14,7 +14,7 @@ csize = MPI.Comm_size(comm)
 root = 0
 
 if crank == root
-    test_alm = Alm(5, 5, [ComplexF64(i) for i in 1:numberOfAlms(5)])
+    test_alm = Alm(1000, 1000, [ComplexF64(i) for i in 1:numberOfAlms(1000)])
     res_alm = Alm(5,5)
 else
     test_alm = nothing

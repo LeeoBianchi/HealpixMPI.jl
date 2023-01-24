@@ -477,3 +477,25 @@ function MPI.Allgather!(
         in_d_map = nothing
     end
 end
+
+## DistributedMap Algebra
+
+import Base: +, -, *, /
+
++(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} =
+    DistributedMap{T,I}(a.pixels .+ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+-(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = 
+    DistributedMap{T,I}(a.pixels .- b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+*(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = 
+    DistributedMap{T,I}(a.pixels .* b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+/(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = 
+    DistributedMap{T,I}(a.pixels ./ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+
++(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a.pixels .+ b, a.info)
+-(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = a + (-b)
+*(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a.pixels .* b, a.info)
+/(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a.pixels ./ b, a.info)
+
++(a::Number, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = b + a
+*(a::Number, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = b * a
+/(a::Number, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a ./ b.pixels, b.info)

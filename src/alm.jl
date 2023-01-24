@@ -453,6 +453,7 @@ end
 
 ## DistributedAlm Algebra
 import LinearAlgebra: dot
+import Base.Threads
 
 """
     localdot(alm₁::DistributedAlm{Complex{T}}, alm₂::DistributedAlm{Complex{T}}) where {T <: Number} -> Number
@@ -469,7 +470,7 @@ function localdot(alm₁::DistributedAlm{Complex{T},I}, alm₂::DistributedAlm{C
     nm = length(mval)
     res_m0 = 0
     res_rest = 0
-    @inbounds for mi in 1:nm #maybe run in parallel with JuliaThreads
+    @inbounds for mi in 1:nm #maybe run in parallel with Threads.@threads
         m = mval[mi]
         i1 = mstart[mi] + m
         i2 = i1 + lmax - m #this gives index range for each ell, for given m
@@ -573,13 +574,11 @@ function almxfl!(alm::DistributedAlm{Complex{T},I}, fl::AA) where {T<:Real, I<:I
     mval = alm.info.mval
     fl_size = length(fl)
 
-    if lmax + 1 <= fl_size
-        fl = fl[1:lmax+1]
-    else
+    if lmax + 1 > fl_size
         fl = [fl; zeros(lmax + 1 - fl_size)]
     end
     i = 1
-    for m in mval
+    @inbounds for m in mval
         for l = m:lmax
             alm.alm[i] = alm.alm[i]*fl[l+1]
             i += 1

@@ -41,4 +41,4 @@ else
 end
 
 #test Allgather!
-Test.@test res_map_all == test_map_all
+Test.@test res_map_all == test_map_all #FIXME: check why it doesn't work on a single taks.

@@ -1,18 +1,18 @@
 using Test
 
-@testset "Scatter and Gather map" begin
+@testset "DistributedMap tools" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_map.jl"
     res = run(cm)
     @test success(res)
 end
 
-@testset "Scatter and Gather alm" begin
+@testset "DistributedAlm tools" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_alm.jl"
     res = run(cm)
     @test success(res)
 end
 
-@testset "Alm space parallel dot product" begin
+@testset "Alm-space parallel dot product" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_dot.jl"
     res = run(cm)
     @test success(res)

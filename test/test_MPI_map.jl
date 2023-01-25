@@ -29,7 +29,7 @@ MPI.Scatter!(test_map, d_map, comm)
 
 MPI.Gather!(d_map, res_map, clear=false)
 
-MPI.Allgather!(d_map, res_map_all, clear=true)
+MPI.Allgather!(d_map, res_map_all, clear=false)
 
 MPI.Barrier(comm)
 
@@ -37,7 +37,7 @@ MPI.Barrier(comm)
 if crank == root
     Test.@test test_map == res_map
 else
-    Test.@test res_map == nothing
+    Test.@test res_map === nothing
 end
 
 #test Allgather!

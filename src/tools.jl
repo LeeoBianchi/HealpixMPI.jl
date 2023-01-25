@@ -22,6 +22,23 @@ function ScatterArray_RR(
     return local_arr
 end
 
+"""
+    MPI.Scatter!(arr::AA, nside::Integer, comm::MPI.Comm; strategy::Symbol = :RR, root::Integer = 0) where {T <: Real, AA <: AbstractArray{T,1}}
+    MPI.Scatter!(nothing, nside::Integer, comm::MPI.Comm; strategy::Symbol = :RR, root::Integer = 0)
+
+    Distributes a map-space array (e.g. masks, diagonal noise matrixes, etc.) passed in input on the `root` task, 
+    according to the specified strategy(e.g. pass ":RR" for Round Robin).
+
+    As in the standard MPI function, the input `arr` can be `nothing` on non-root tasks, since it will be ignored anyway.
+
+    # Arguments:
+    - `arr::AA`: array to distribute over the MPI tasks.
+    - `nside::Integer`: NSIDE parameter of the map we are referring to.
+
+    # Keywords:
+    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
+    - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
+"""
 function MPI.Scatter(
     arr::AA,
     nside::Integer,

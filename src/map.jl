@@ -3,9 +3,10 @@
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DistributedMap`.
 
 An `GeomInfoMPI` type contains:
+- `comm`: MPI communicator used.
 - `nside`: NSIDE parameter of the whole map.
 - `maxnr`: maximum number of rings in the subsets, over the tasks involved.
-- `comm`: MPI communicator used.
+- `thetatot`: array of the colatitudes of the whole map.
 - `rings`: array of the ring indexes (w.r.t. the whole map) contained in the subset.
 - `rstart`: array containing the 1-based index of the first pixel of each ring contained in the subset.
 - `nphi`: array containing the number of pixels in every ring contained in the subset.
@@ -64,18 +65,15 @@ ring2theta(ring::Integer, res::Resolution) = getringinfo(res, ring; full=true).c
 
 A subset of a Healpix map, containing only certain rings (as specified in the `info` field).
 The type `T` is used for the value of the pixels in a map, it must be a `Number` (usually float).
-The type `AA` is used to store the array of pixels; typical types are `Vector`, `CUArray`, `SharedArray`, etc.
 
-A `HealpixMap` type contains the following fields:
+A `DistributedMap` type contains the following fields:
 
 - `pixels::Vector{T}`: array of pixels composing the subset.
-- `rings::Vector{I}`: array of the ring indexes included in the subset.
-- `rstart::Vector{I}`: array of the indexes  (1-based) of the first pixel of each ring in `pixels`.
 - `info::GeomInfo`: a `GeomInfo` object describing the HealpixMap subset.
-- `comm::MPI.Comm`: communicator used to distribute the map.
 
-The `GeomInfo` contained in `info` must match exactly the characteristic of the Map subset,
-this can be constructed through the function `make_subset_healpix_geom_info`, for instance.
+The `GeomInfoMPI` contained in `info` must match exactly the characteristic of the Map subset,
+this is already automatically constructed when [`MPI.Scatter!`](@ref) is called, reason why this
+method for initializing a `DistributedMap` is reccomended.
 
 """
 mutable struct DistributedMap{T<:Real, I<:Integer}
@@ -100,11 +98,12 @@ function Healpix.numOfRings(nside::Integer)
     4*nside - 1
 end
 
-#maybe add this to Healpix.jl
 get_equator_idx(nside::Integer) = 2*nside
 get_equator_idx(res::Resolution) = get_equator_idx(res.nside)
 
-"""
+""" get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
+    get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer)
+
     Return number of rings on specified task given total map resolution
     and communicator size according to Round Robin.
 """
@@ -112,7 +111,6 @@ function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
     (eq_idx + c_size - 1 - task_rank) ÷ c_size * 2 - iszero(task_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
 end
-
 get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(get_equator_idx(res.nside), task_rank, c_size)
 
 """ get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) where {T <: Real, AA <: AbstractArray{T,1}}
@@ -128,7 +126,9 @@ end
 get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}} =
     get_ring_pixels(map, getringinfo(map.resolution, ring_idx; full=false))
 
-"""
+""" get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
+    get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
+
     Return array of rings on specified task (0-base index) given total map resolution
     and communicator size, ordered from the equator to the poles alternating N/S,
     according to Round Robin.
@@ -142,16 +142,20 @@ function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer
     end
     rings
 end
-
 function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
     eq_idx = get_equator_idx(nside)
     nrings = get_nrings_RR(eq_idx, t_rank, c_size)
     get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
 end
 
-#FIXME: create version which does not re-compute info in d_map
+"""
+    Internal function implementing a "Round Robin" strategy. 
+
+    Here the input alms are supposed to be on every task as a copy.
+    The input map object is broadcasted by `MPI.Scatter!`.
+"""
 function ScatterMap_RR!(
-    map::HealpixMap{T,RingOrder,AbstractArray{T,1}},
+    map::HealpixMap{T,RingOrder,Array{T,1}},
     d_map::DistributedMap{T,I}
     ) where {T <: Real, I <: Integer}
 
@@ -201,16 +205,16 @@ end
 
 """
     MPI.Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DistributedMap{T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
-    MPI.Scatter!(in_alm::Nothing, out_d_map::DistributedMap{T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
+    MPI.Scatter!(nothing, out_d_map::DistributedMap{T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
 
     Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
     `DistributedMap` objects passed on each task, according to the specified strategy
-    (e.g. pass ":RR" for Round Robin).
+    (by default ":RR" for Round Robin).
 
     As in the standard MPI function, the `in_map` in input can be `nothing` on non-root tasks,
     since it will be ignored anyway.
 
-    If the keyword `clear` is set to `true` it frees the memory of each task from the (potentially bulky) `Alm` object.
+    If the keyword `clear` is set to `true` it frees the memory of each task from the (potentially bulky) `HealpixMap` object.
 
     # Arguments:
     - `in_map::HealpixMap{T,RingOrder,Array{T,1}}`: `HealpixMap` object to distribute over the MPI tasks.
@@ -222,7 +226,7 @@ end
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function MPI.Scatter!(
-    in_map::HealpixMap{T,RingOrder,AbstractArray{T,1}},
+    in_map::HealpixMap{T,RingOrder,Array{T,1}},
     out_d_map::DistributedMap{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
@@ -277,10 +281,14 @@ function MPI.Scatter!(
 end
 
 #######################################################################
-#root task
+"""
+    Internal function implementing a "Round Robin" strategy.
+
+    Specifically relative to the root-task.
+"""
 function GatherMap_RR_root!(
     d_map::DistributedMap{T,I},
-    map::HealpixMap{T,RingOrder,AbstractArray{T,1}},
+    map::HealpixMap{T,RingOrder,Array{T,1}},
     root::Integer
     ) where {T <: Real, I <: Integer}
 
@@ -309,7 +317,11 @@ function GatherMap_RR_root!(
     end
 end
 
-#for NON-ROOT tasks: no output
+"""
+    Internal function implementing a "Round Robin" strategy.
+
+    Specifically relative to non root-tasks: no output is returned.
+"""
 function GatherMap_RR_rest!(
     d_map::DistributedMap{T,I},
     root::Integer
@@ -344,7 +356,7 @@ end
 
     Gathers the `DistributedMap` objects passed on each task overwriting the `HealpixMap`
     object passed in input on the `root` task according to the specified `strategy`
-    (e.g. pass `:RR` for Round Robin). Note that the strategy must match the one used
+    (by default `:RR` for Round Robin). Note that the strategy must match the one used
     to "scatter" the map.
 
     As in the standard MPI function, the `out_map` can be `nothing` on non-root tasks,
@@ -386,7 +398,7 @@ end
 #allows to pass nothing as output map on non-root tasks
 function MPI.Gather!(
     in_d_map::DistributedMap{T,I},
-    out_map::Nothing;
+    nothing;
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -402,7 +414,9 @@ function MPI.Gather!(
 end
 
 ##########################################################
-
+"""
+    Internal function implementing a "Round Robin" strategy.
+"""
 function AllgatherMap_RR!(
     d_map::DistributedMap{T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}}
@@ -438,7 +452,7 @@ end
 
     Gathers the `DistributedMap` objects passed on each task overwriting the `out_map`
     object passed in input on EVERY task according to the specified `strategy`
-    (e.g. pass `:RR` for Round Robin). Note that the strategy must match the one used
+    (by default `:RR` for Round Robin). Note that the strategy must match the one used
     to "scatter" the map.
 
     If the keyword `clear` is set to `true` it frees the memory of each task from

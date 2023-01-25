@@ -19,10 +19,10 @@ end
 Information describing an MPI-distributed subset of `Alm`, contained in a `DistributedAlm`.
 
 An `AlmInfoMPI` type contains:
+- `comm`: MPI communicator used.
 - `lmax`: the maximum value of ``ℓ``.
 - `mmax`: the maximum value of ``m`` on the whole `Alm` set.
 - `maxnm`: maximum value (over tasks) of nm (number of m values).
-- `comm`: MPI communicator used.
 - `mval`: array of values of ``m`` contained in the subset.
 - `mstart`: array hypothetical indexes of the harmonic coefficient with ℓ=0, m. #FIXME: for now 0-based
 
@@ -56,14 +56,12 @@ AlmInfoMPI() = AlmInfoMPI{Int64}()
 
 The type `T` is used for the value of each harmonic coefficient, and
 it must be a `Number` (one should however only use complex types for
-this). The type `AA` is used to store the array of coefficients; a
-typical choice is `Vector`.
+this).
 
 A `SubAlm` type contains the following fields:
 
 - `alm`: the array of harmonic coefficients
 - `info`: an `AlmInfo` object describing the alm subset.
-- `comm`: `MPI.Comm` communicator used to distribute the a_lm.
 
 The `AlmInfo` contained in `info` must match exactly the characteristic of the Alm subset,
 this can be constructed through the function `make_general_alm_info`, for instance.
@@ -90,7 +88,8 @@ DistributedAlm() = DistributedAlm{ComplexF64, Int64}()
 
 # MPI Overloads:
 ## SCATTER
-"""
+""" get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
+
     Return number of m's on specified task in a Round Robin strategy
 """
 function get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
@@ -98,7 +97,8 @@ function get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
     (global_mmax + c_size - task_rank) ÷ c_size # =nm
 end
 
-"""
+""" get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
+
     Return array of m values on specified task in a Round Robin strategy
 """
 function get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
@@ -110,7 +110,8 @@ function get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
     mval
 end
 
-"""
+""" get_m_tasks_RR(mmax::Integer, c_size::Integer)
+
     Computes an array containing the task each m in the full range [0, `mmax`]
     is assigned to according to a Round Robin strategy, given the communicator size.
 """
@@ -139,8 +140,12 @@ function make_mstart_complex(lmax::Integer, stride::Integer, mval::AbstractArray
     mstart
 end
 
-#here the input alms are supposed to be on every task as a copy
-#the input Alm object is broadcasted by MPI.Scatter!
+"""
+    Internal function implementing a "Round Robin" strategy. 
+
+    Here the input alms are supposed to be on every task as a copy.
+    The input Alm object is broadcasted by `MPI.Scatter!`.
+"""
 function ScatterAlm_RR!(
     alm::Alm{T,Array{T,1}},
     d_alm::DistributedAlm{T,I}
@@ -167,7 +172,7 @@ end
 
     Distributes the `Alm` object passed in input on the `root` task overwriting the
     `DistributedAlm` objects passed on each task, according to the specified strategy
-    (e.g. pass ":RR" for Round Robin).
+    (by default ":RR" for Round Robin).
 
     As in the standard MPI function, the `in_alm` in input can be `nothing` on non-root tasks,
     since it will be ignored anyway.
@@ -177,7 +182,6 @@ end
     # Arguments:
     - `in_alm::Alm{T,Array{T,1}}`: `Alm` object to distribute over the MPI tasks.
     - `out_d_alm::DistributedAlm{T}`: output `DistributedAlm` object.
-    - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
     - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
@@ -241,8 +245,11 @@ function MPI.Scatter!(
 end
 
 ## GATHER
+"""
+    Internal function implementing a "Round Robin" strategy.
 
-#root task
+    Specifically relative to the root-task.
+"""
 function GatherAlm_RR_root!(
     d_alm::DistributedAlm{T,I},
     alm::Alm{T,Array{T,1}},
@@ -277,7 +284,11 @@ function GatherAlm_RR_root!(
     end
 end
 
-#for NON-ROOT tasks: no output
+"""
+    Internal function implementing a "Round Robin" strategy.
+
+    Specifically relative to non root-tasks: no output is returned.
+"""
 function GatherAlm_RR_rest!(
     d_alm::DistributedAlm{T,I},
     root::Integer
@@ -312,7 +323,7 @@ end
 
     Gathers the `DistributedAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
-    (e.g. pass `:RR` for Round Robin). Note that the strategy must match the one used
+    (by default `:RR` for Round Robin). Note that the strategy must match the one used
     to "scatter" the a_lm.
 
     As in the standard MPI function, the `out_alm` can be `nothing` on non-root tasks,
@@ -370,7 +381,9 @@ function MPI.Gather!(
 end
 
 ## Allgather
-
+"""
+    Internal function implementing a "Round Robin" strategy.
+"""
 function AllgatherAlm_RR!(
     d_alm::DistributedAlm{T,I},
     alm::Alm{T,Array{T,1}},
@@ -409,7 +422,7 @@ end
 
     Gathers the `DistributedAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
-    (e.g. pass `:RR` for Round Robin). Note that the strategy must match the one used
+    (by default `:RR` for Round Robin). Note that the strategy must match the one used
     to "scatter" the a_lm.
 
     As in the standard MPI function, the `out_alm` can be `nothing` on non-root tasks,

@@ -146,17 +146,16 @@ end
 function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
     eq_idx = get_equator_idx(nside)
     nrings = get_nrings_RR(eq_idx, t_rank, c_size)
-    rings = Vector{Int}(undef, nrings)
     get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
 end
 
 #FIXME: create version which does not re-compute info in d_map
 function ScatterMap_RR!(
-    map::HealpixMap{T,RingOrder,Array{T,1}},
+    map::HealpixMap{T,RingOrder,AbstractArray{T,1}},
     d_map::DistributedMap{T,I}
     ) where {T <: Real, I <: Integer}
 
-    stride = 1
+    #stride = 1
     c_rank = MPI.Comm_rank(d_map.info.comm)
     c_size = MPI.Comm_size(d_map.info.comm)
     res = map.resolution
@@ -223,7 +222,7 @@ end
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function MPI.Scatter!(
-    in_map::HealpixMap{T,RingOrder,Array{T,1}},
+    in_map::HealpixMap{T,RingOrder,AbstractArray{T,1}},
     out_d_map::DistributedMap{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
@@ -246,7 +245,7 @@ function MPI.Scatter!(
 end
 
 function MPI.Scatter!(
-    in_map::Nothing,
+    nothing,
     out_d_map::DistributedMap{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
@@ -281,13 +280,11 @@ end
 #root task
 function GatherMap_RR_root!(
     d_map::DistributedMap{T,I},
-    map::HealpixMap{T,RingOrder,Array{T,1}},
+    map::HealpixMap{T,RingOrder,AbstractArray{T,1}},
     root::Integer
     ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
-    crank = MPI.Comm_rank(comm)
-    csize = MPI.Comm_size(comm)
 
     resolution = map.resolution
     ringinfo = RingInfo(0, 0, 0, 0, 0)
@@ -319,9 +316,6 @@ function GatherMap_RR_rest!(
     ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
-    crank = MPI.Comm_rank(comm)
-    csize = MPI.Comm_size(comm)
-
     resolution = Resolution(d_map.info.nside)
     ringinfo = RingInfo(0, 0, 0, 0, 0)
     rings = d_map.info.rings
@@ -411,13 +405,10 @@ end
 
 function AllgatherMap_RR!(
     d_map::DistributedMap{T,I},
-    map::HealpixMap{T,RingOrder,Array{T,1}},
-    root::Integer
+    map::HealpixMap{T,RingOrder,Array{T,1}}
     ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
-    crank = MPI.Comm_rank(comm)
-    csize = MPI.Comm_size(comm)
     #each task can have at most root_nring + 1
     res = map.resolution
     ringinfo = RingInfo(0, 0, 0, 0, 0)
@@ -443,7 +434,7 @@ function AllgatherMap_RR!(
 end
 
 """
-    MPI.Allgather!(in_d_map::DistributedMap{T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number}
+    MPI.Allgather!(in_d_map::DistributedMap{T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
 
     Gathers the `DistributedMap` objects passed on each task overwriting the `out_map`
     object passed in input on EVERY task according to the specified `strategy`
@@ -459,19 +450,17 @@ end
 
     # Keywords:
     - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
-    - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
     in_d_map::DistributedMap{T,I},
     out_map::HealpixMap{T,RingOrder,Array{T,1}};
     strategy::Symbol = :RR,
-    root::Integer = 0,
     clear::Bool = false
     ) where  {T <: Real, I <: Integer}
 
     if strategy == :RR #Round Robin, can add more.
-        AllgatherMap_RR!(in_d_map, out_map, root)
+        AllgatherMap_RR!(in_d_map, out_map)
     end
     if clear
         in_d_map = nothing
@@ -479,7 +468,6 @@ function MPI.Allgather!(
 end
 
 ## DistributedMap Algebra
-
 import Base: +, -, *, /
 
 +(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} =

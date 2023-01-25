@@ -40,7 +40,6 @@ if crank == root
 else
     Test.@test res_alm === nothing
 end
-
 Test.@test res_alm_all.alm == test_alm_all.alm #FIXME: check why allgather doesn't work on 1 task
 
 #TEST ALGEBRA

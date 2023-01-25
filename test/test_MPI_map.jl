@@ -33,12 +33,19 @@ MPI.Allgather!(d_map, res_map_all, clear=false)
 
 MPI.Barrier(comm)
 
-#test Gather
+#TEST SCATTER/GATHER
 if crank == root
     Test.@test test_map == res_map
 else
     Test.@test res_map === nothing
 end
-
-#test Allgather!
 Test.@test res_map_all == test_map_all #FIXME: check why it doesn't work on a single taks.
+
+#TEST ALGEBRA
+d_map2 = 2. *d_map
+
+Test.@test (d_map + d_map).pixels == d_map2.pixels
+Test.@test (d_map2/2.).pixels == (d_map2 - d_map).pixels
+Test.@test isapprox((d_map * d_map / d_map).pixels, d_map.pixels)
+
+Test.@test isapprox(((π + d_map) - π).pixels, d_map.pixels)

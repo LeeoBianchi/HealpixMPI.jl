@@ -209,7 +209,7 @@ end
 
 #non root node
 function MPI.Scatter!(
-    in_alm::Nothing,
+    nothing,
     out_d_alm::DistributedAlm{T,I};
     strategy::Symbol = :RR,
     root::Integer = 0,
@@ -250,8 +250,6 @@ function GatherAlm_RR_root!(
     ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
-    crank = MPI.Comm_rank(comm)
-    csize = MPI.Comm_size(comm)
     #local quantities:
     lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval
@@ -286,8 +284,6 @@ function GatherAlm_RR_rest!(
     ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
-    crank = MPI.Comm_rank(d_alm.info.comm)
-    csize = MPI.Comm_size(d_alm.info.comm)
     #local quantities:
     lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval
@@ -357,7 +353,7 @@ end
 #allows non-root tasks to pass nothing as output
 function MPI.Gather!(
     in_d_alm::DistributedAlm{T,I},
-    out_alm::Nothing;
+    nothing;
     strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
@@ -378,13 +374,9 @@ end
 function AllgatherAlm_RR!(
     d_alm::DistributedAlm{T,I},
     alm::Alm{T,Array{T,1}},
-    root::Integer
     ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
-    crank = MPI.Comm_rank(comm)
-    csize = MPI.Comm_size(comm)
-
     #local quantities:
     lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval
@@ -413,7 +405,7 @@ function AllgatherAlm_RR!(
 end
 
 """
-    MPI.Allgather!(in_d_alm::DistributedAlm{T}, out_alm::Alm{T,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number}
+    MPI.Allgather!(in_d_alm::DistributedAlm{T}, out_alm::Alm{T,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
 
     Gathers the `DistributedAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
@@ -432,19 +424,17 @@ end
 
     # Keywords:
     - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
-    - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
     in_d_alm::DistributedAlm{T,I},
     out_alm::Alm{T,Array{T,1}};
     strategy::Symbol = :RR,
-    root::Integer = 0,
     clear::Bool = false
     ) where {T<:Number, I<:Integer}
 
     if strategy == :RR #Round Robin, can add more.
-        AllgatherAlm_RR!(in_d_alm, out_alm, root)
+        AllgatherAlm_RR!(in_d_alm, out_alm)
     end
     if clear
         in_d_alm = nothing

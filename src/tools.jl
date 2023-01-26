@@ -16,7 +16,8 @@ function ScatterArray_RR(
     for ring in local_rings
         getringinfo!(res, ring, ring_info; full=false)
         first_pix_idx = ring_info.firstPixIdx
-        local_arr[i] = @view arr[first_pix_idx:(first_pix_idx + ring_info.numOfPixels - 1)]
+        local_arr[i] = arr[first_pix_idx:(first_pix_idx + ring_info.numOfPixels - 1)]
+        i+=1
     end
     local_arr = reduce(vcat, local_arr)
     return local_arr

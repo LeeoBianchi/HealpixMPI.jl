@@ -1,6 +1,5 @@
 using Healpix
-using MPI
-using Test
+import Test
 
 include("../src/map.jl")
 
@@ -12,17 +11,18 @@ comm = MPI.COMM_WORLD
 crank = MPI.Comm_rank(comm)
 csize = MPI.Comm_size(comm)
 root = 0
+nside = 8
 
 if crank == root
-    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(2)])
-    res_map = HealpixMap{Float64, RingOrder}(zeros(nside2npix(2)))
+    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(nside)])
+    res_map = HealpixMap{Float64, RingOrder}(zeros(nside2npix(nside)))
 else
     test_map = nothing
     res_map = nothing
 end
 
-test_map_all = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(2)])
-res_map_all = HealpixMap{Float64, RingOrder}(zeros(nside2npix(2)))
+test_map_all = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(nside)])
+res_map_all = HealpixMap{Float64, RingOrder}(zeros(nside2npix(nside)))
 
 d_map = DistributedMap()
 MPI.Scatter!(test_map, d_map, comm)
@@ -40,12 +40,3 @@ else
     Test.@test res_map === nothing
 end
 Test.@test res_map_all == test_map_all #FIXME: check why it doesn't work on a single taks.
-
-#TEST ALGEBRA
-d_map2 = 2. *d_map
-
-Test.@test (d_map + d_map).pixels == d_map2.pixels
-Test.@test (d_map2/2.).pixels == (d_map2 - d_map).pixels
-Test.@test isapprox((d_map * d_map / d_map).pixels, d_map.pixels)
-
-Test.@test isapprox(((π + d_map) - π).pixels, d_map.pixels)

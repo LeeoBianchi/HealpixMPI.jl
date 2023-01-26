@@ -1,5 +1,4 @@
 using Healpix
-using MPI
 import Test
 
 include("../src/alm.jl")
@@ -41,13 +40,3 @@ else
     Test.@test res_alm === nothing
 end
 Test.@test res_alm_all.alm == test_alm_all.alm #FIXME: check why allgather doesn't work on 1 task
-
-#TEST ALGEBRA
-d_alm2 = 2*d_alm
-
-Test.@test (d_alm + d_alm).alm == d_alm2.alm
-Test.@test (d_alm2/2).alm == (d_alm2 - d_alm).alm
-Test.@test isapprox((d_alm * d_alm / d_alm).alm, d_alm.alm)
-
-fl = Vector{Float64}(1:11)
-Test.@test isapprox(((fl*d_alm)/fl).alm, d_alm.alm)

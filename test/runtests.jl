@@ -1,13 +1,25 @@
 using Test
 
-@testset "DistributedMap tools" begin
+@testset "DistributedMap: Scatter & Gather" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_map.jl"
     res = run(cm)
     @test success(res)
 end
 
-@testset "DistributedAlm tools" begin
+@testset "DistributedMap: Algebra" begin
+    cm = @cmd "mpirun -n 3 julia test_MPI_alg_map.jl"
+    res = run(cm)
+    @test success(res)
+end
+
+@testset "DistributedAlm: Scatter & Gather" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_alm.jl"
+    res = run(cm)
+    @test success(res)
+end
+
+@testset "DistributedAlm: Algebra" begin
+    cm = @cmd "mpirun -n 3 julia test_MPI_alg_alm.jl"
     res = run(cm)
     @test success(res)
 end
@@ -32,6 +44,12 @@ end
 
 @testset "Power spectrum functions: alm2cl & synalm!" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_cl.jl"
+    res = run(cm)
+    @test success(res)
+end
+
+@testset "Map-space array scattering" begin
+    cm = @cmd "mpirun -n 3 julia test_MPI_arr.jl"
     res = run(cm)
     @test success(res)
 end

@@ -1,0 +1,31 @@
+```@meta
+DocTestSetup = quote
+    using HealpixMPI
+end
+```
+
+# HealpixMPI.jl: an MPI-parallel implementation of the Healpix tessellation scheme in Julia
+
+This is the documentation of the [HealpixMPI.jl](https://github.com/LeeoBianchi/HealpixMPI.jl) package, an MPI-parallel implementation of the Healpix spherical tessellation scheme written entirely in Julia.
+
+This package constitutes a natural extension of the package [Healpix.jl](https://github.com/ziotom78/Healpix.jl), providing an MPI integration of the main functionalities, allowing for high-performances and better scaling on high resolutions.
+
+More specifically, three main features can be highlighted:
+- **High-performance spherical harmonic transforms**. This library relies on [ducc](https://gitlab.mpcdf.mpg.de/mtr/ducc)'s state-of-the-art algorithms for performing fast and efficient SHTs.
+- **High scalability**. The simultanous usage of modern C++ multithreading (provided by [ducc](https://gitlab.mpcdf.mpg.de/mtr/ducc), for shared-memory parallelization) and MPI (for distributed-memory parallelization) allows, in principle, for the best scaling possible on SHTs, i.e. 1-to-1 correspondence between m values (or map rings) and processes, if the code is run on a sufficiently large cluster of machines.
+Note that this would be in practice impossible to achieve for high relosutions without the usage of MPI, which allows to distribute our maps and harmonic coefficients over different computing nodes, since generally such a high number of computing cores is never available on the same machine.
+- **Cross-platform support**. This package mantains the same multi-platform compatibility of [Healpix.jl](https://github.com/ziotom78/Healpix.jl), thanks to the cross-platform support of [MPI.jl](https://github.com/JuliaParallel/MPI.jl), [ducc](https://gitlab.mpcdf.mpg.de/mtr/ducc) and Julia itself.
+
+## Documentation
+
+The documentation was built using [Documenter.jl](https://github.com/JuliaDocs).
+
+```@example
+using Dates # hide
+println("Documentation built on $(now()) using Julia $(VERSION).") # hide
+```
+
+## Index
+
+```@index
+```

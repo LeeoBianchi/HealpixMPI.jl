@@ -23,7 +23,7 @@ else
     res_alm = nothing
 end
 
-d_alm = DistributedAlm()
+d_alm = DistributedAlm{RR}()
 
 MPI.Scatter!(test_alm, d_alm, comm)
 

@@ -49,7 +49,7 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
 end
 
 #for now we only support spin-0
-function alm2map!(d_alm::DistributedAlm{Complex{T},I}, d_map::DistributedMap{T,I}; nthreads = 0) where {T<:Real, I<:Integer}
+function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
 
     #we first compute the leg's for local m's and all the rings (orderd fron N->S)
@@ -102,12 +102,12 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     rings_received
 end
 
-function adjoint_alm2map!(d_map::DistributedMap{T,I}, d_alm::DistributedAlm{Complex{T},I}; nthreads = 0) where {T<:Real, I<:Integer}
+function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
 
     in_leg = Ducc0.Sht.map2leg(reshape(d_map.pixels, length(d_map.pixels), 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), d_alm.info.mmax + 1, 1, Unsigned(nthreads))
     #we transpose the leg's over tasks
-    
+
     out_leg = Array{ComplexF64,3}(undef, length(d_alm.info.mval), numOfRings(d_map.info.nside), 1) # loc_nm * tot_nr Matrix.
     MPI.Barrier(comm)
     println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")

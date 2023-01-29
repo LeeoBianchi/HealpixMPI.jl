@@ -19,7 +19,7 @@ else
     test_map = nothing
 end
 
-d_map = DistributedMap()
+d_map = DistributedMap{RR}()
 MPI.Scatter!(test_map, d_map, comm)
 
 #TEST ALGEBRA

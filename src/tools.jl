@@ -9,7 +9,7 @@ function ScatterArray_RR(
     comm::MPI.Comm
     ) where {T <: Real, AA <: AbstractArray{T,1}}
     local_rings = get_rindexes_RR(nside, MPI.Comm_rank(comm), MPI.Comm_size(comm))
-    local_arr = Vector{Vector{Float64}}(undef, length(local_rings)) #vector of local 
+    local_arr = Vector{Vector{Float64}}(undef, length(local_rings)) #vector of local
     ring_info = RingInfo(0, 0, 0, 0, 0) #initialize ring info object
     res = Resolution(nside)
     i = 1
@@ -24,10 +24,10 @@ function ScatterArray_RR(
 end
 
 """
-    MPI.Scatter!(arr::AA, nside::Integer, comm::MPI.Comm; strategy::Symbol = :RR, root::Integer = 0) where {T <: Real, AA <: AbstractArray{T,1}}
-    MPI.Scatter!(nothing, nside::Integer, comm::MPI.Comm; strategy::Symbol = :RR, root::Integer = 0)
+    MPI.Scatter!(arr::AA, nside::Integer, comm::MPI.Comm; strategy::Type = RR, root::Integer = 0) where {T <: Real, AA <: AbstractArray{T,1}}
+    MPI.Scatter!(nothing, nside::Integer, comm::MPI.Comm; strategy::Type = RR, root::Integer = 0)
 
-    Distributes a map-space array (e.g. masks, diagonal noise matrixes, etc.) passed in input on the `root` task, 
+    Distributes a map-space array (e.g. masks, diagonal noise matrixes, etc.) passed in input on the `root` task,
     according to the specified strategy(e.g. pass ":RR" for Round Robin).
 
     As in the standard MPI function, the input `arr` can be `nothing` on non-root tasks, since it will be ignored anyway.
@@ -44,7 +44,7 @@ function MPI.Scatter(
     arr::AA,
     nside::Integer,
     comm::MPI.Comm;
-    strategy::Symbol = :RR,
+    strategy::Type = RR,
     root::Integer = 0
     ) where {T <: Real, AA <: AbstractArray{T,1}}
 
@@ -54,7 +54,7 @@ function MPI.Scatter(
         arr = MPI.bcast(nothing, root, comm)
     end
 
-    if strategy == :RR #Round Robin, can add more.
+    if strategy == RR #Round Robin, can add more.
         return ScatterArray_RR(arr, nside, comm)
     end
 end
@@ -63,14 +63,14 @@ function MPI.Scatter(
     nothing,
     nside::Integer,
     comm::MPI.Comm;
-    strategy::Symbol = :RR,
+    strategy::Type = RR,
     root::Integer = 0
     )
 
     (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input array on root task can NOT be `nothing`."))
     arr = MPI.bcast(nothing, root, comm)
 
-    if strategy == :RR #Round Robin, can add more.
+    if strategy == RR #Round Robin, can add more.
         return ScatterArray_RR(arr, nside, comm)
     end
 end

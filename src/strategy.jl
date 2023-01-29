@@ -1,5 +1,5 @@
 """Abstract type representing the strategy used to distribute a Healpix map or alm.
-If the user wishes to implement it's own, it should be added as an inherited type, 
+If the user wishes to implement it's own, it should be added as an inherited type,
 see `RR` as an example.
 """
 abstract type Strategy end

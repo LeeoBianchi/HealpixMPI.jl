@@ -1,6 +1,8 @@
 using MPI #then remove, it's already in HealpixMPI.jl
 using Healpix
 
+include("strategy.jl")
+
 """ struct GeomInfoMPI{I <: Integer, T <: Real}
 
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DistributedMap`.
@@ -43,7 +45,7 @@ GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vecto
 GeomInfoMPI{T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), comm)
 GeomInfoMPI(comm::MPI.Comm) = GeomInfoMPI{Float64, Int64}(comm)
 #empty constructor
-GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), comm)
+GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
 GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
 
 """
@@ -79,23 +81,25 @@ this is already automatically constructed when [`MPI.Scatter!`](@ref) is called,
 method for initializing a `DistributedMap` is reccomended.
 
 """
-mutable struct DistributedMap{T<:Real, I<:Integer}
+mutable struct DistributedMap{S<:Strategy, T<:Real, I<:Integer}
     pixels::Vector{T}
     info::GeomInfoMPI{T,I}
 
-    DistributedMap{T,I}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<:Integer} =
-        new{T,I}(pixels, info)
+    DistributedMap{S,T,I}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {S<:Strategy, T<:Real, I<:Integer} =
+        new{S,T,I}(pixels, info)
 end
 
-DistributedMap(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<: Integer} =
-    DistributedMap{T,I}(pixels, info)
+DistributedMap{S}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<: Integer, S<:Strategy} =
+    DistributedMap{S,T,I}(pixels, info)
 
-DistributedMap{T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}(comm))
-DistributedMap(comm::MPI.Comm) = DistributedMap{Float64, Int64}(comm)
+DistributedMap{S,T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer, S<:Strategy} = DistributedMap{S,T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}(comm))
+DistributedMap{S}(comm::MPI.Comm) where {S<:Strategy} = DistributedMap{S, Float64, Int64}(comm)
 
-#empty constructors
-DistributedMap{T,I}() where {T<:Real, I<:Integer} = DistributedMap{T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
-DistributedMap() = DistributedMap{Float64, Int64}()
+#lazy constructors
+DistributedMap{S,T,I}() where {S<:Strategy, T<:Real, I<:Integer} = DistributedMap{S,T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
+DistributedMap{S}() where {S<:Strategy} = DistributedMap{S, Float64, Int64}()
+
+d_map = DistributedMap{RR}()
 
 function Healpix.numOfRings(nside::Integer)
     4*nside - 1
@@ -152,14 +156,14 @@ function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
 end
 
 """
-    Internal function implementing a "Round Robin" strategy. 
+    Internal function implementing a "Round Robin" strategy (note the type rquirement on d_map).
 
-    Here the input alms are supposed to be on every task as a copy.
+    Here the input map is supposed to be on every task as a copy.
     The input map object is broadcasted by `MPI.Scatter!`.
 """
-function ScatterMap_RR!(
+function ScatterMap!(
     map::HealpixMap{T,RingOrder,Array{T,1}},
-    d_map::DistributedMap{T,I}
+    d_map::DistributedMap{RR,T,I} #Round Robin, can add more as overloads
     ) where {T <: Real, I <: Integer}
 
     #stride = 1
@@ -207,8 +211,8 @@ function ScatterMap_RR!(
 end
 
 """
-    MPI.Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DistributedMap{T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
-    MPI.Scatter!(nothing, out_d_map::DistributedMap{T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
+    MPI.Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DistributedMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
+    MPI.Scatter!(nothing, out_d_map::DistributedMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
 
     Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
     `DistributedMap` objects passed on each task, according to the specified strategy
@@ -221,20 +225,18 @@ end
 
     # Arguments:
     - `in_map::HealpixMap{T,RingOrder,Array{T,1}}`: `HealpixMap` object to distribute over the MPI tasks.
-    - `out_d_alm::DistributedMap{T,I}`: output `DistributedMap` object.
+    - `out_d_map::DistributedMap{S,T,I}`: output `DistributedMap` object.
 
     # Keywords:
-    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function MPI.Scatter!(
     in_map::HealpixMap{T,RingOrder,Array{T,1}},
-    out_d_map::DistributedMap{T,I};
-    strategy::Symbol = :RR,
+    out_d_map::DistributedMap{S,T,I};
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Real, I <: Integer}
+    ) where {T<:Real, I<:Integer, S<:Strategy}
 
     comm = out_d_map.info.comm
     if MPI.Comm_rank(comm) == root
@@ -243,9 +245,8 @@ function MPI.Scatter!(
         in_map = MPI.bcast(nothing, root, comm)
     end
 
-    if strategy == :RR #Round Robin, can add more.
-        ScatterMap_RR!(in_map, out_d_map)
-    end
+    ScatterMap!(in_map, out_d_map)
+
     if clear
         in_map = nothing #free unnecessary copies of map
     end
@@ -253,19 +254,17 @@ end
 
 function MPI.Scatter!(
     nothing,
-    out_d_map::DistributedMap{T,I};
-    strategy::Symbol = :RR,
+    out_d_map::DistributedMap{S,T,I};
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Real, I <: Integer}
+    ) where {T<:Real, I<:Integer, S<:Strategy}
 
     comm = out_d_map.info.comm
     (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input map on root task can NOT be `nothing`."))
     in_map = MPI.bcast(nothing, root, comm)
 
-    if strategy == :RR #Round Robin, can add more.
-        ScatterMap_RR!(in_map, out_d_map)
-    end
+    ScatterMap!(in_map, out_d_map)
+
     if clear
         in_map = nothing #free unnecessary copies of map
     end
@@ -273,14 +272,13 @@ end
 
 function MPI.Scatter!(
     in_map,
-    out_d_map::DistributedMap{T,I},
+    out_d_map::DistributedMap{S,T,I},
     comm::MPI.Comm;
-    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Real, I <: Integer}
+    ) where {T<:Real, I<:Integer, S<:Strategy}
     out_d_map.info.comm = comm #overwrites comm in d_map
-    MPI.Scatter!(in_map, out_d_map, strategy = strategy, root = root, clear = clear)
+    MPI.Scatter!(in_map, out_d_map, root = root, clear = clear)
 end
 
 #######################################################################
@@ -289,8 +287,8 @@ end
 
     Specifically relative to the root-task.
 """
-function GatherMap_RR_root!(
-    d_map::DistributedMap{T,I},
+function GatherMap_root!(
+    d_map::DistributedMap{RR,T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}},
     root::Integer
     ) where {T <: Real, I <: Integer}
@@ -325,8 +323,8 @@ end
 
     Specifically relative to non root-tasks: no output is returned.
 """
-function GatherMap_RR_rest!(
-    d_map::DistributedMap{T,I},
+function GatherMap_rest!(
+    d_map::DistributedMap{RR,T,I},
     root::Integer
     ) where {T <: Real, I <: Integer}
 
@@ -378,20 +376,17 @@ end
     - `clear::Bool`: if true deletes the input `DistributedMap` after having performed the "scattering".
 """
 function MPI.Gather!(
-    in_d_map::DistributedMap{T,I},
+    in_d_map::DistributedMap{S,T,I},
     out_map::HealpixMap{T,RingOrder,Array{T,1}};
-    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Real, I <: Integer}
+    ) where {T<:Real, I<:Integer, S<:Strategy}
 
-    if strategy == :RR #Round Robin, can add more.
-        if MPI.Comm_rank(in_d_map.info.comm) == root
-            (out_map.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-            GatherMap_RR_root!(in_d_map, out_map, root)
-        else
-            GatherMap_RR_rest!(in_d_map, root)
-        end
+    if MPI.Comm_rank(in_d_map.info.comm) == root
+        (out_map.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
+        GatherMap_root!(in_d_map, out_map, root)
+    else
+        GatherMap_rest!(in_d_map, root)
     end
     if clear
         in_d_map = nothing #free unnecessary copies of map
@@ -400,17 +395,16 @@ end
 
 #allows to pass nothing as output map on non-root tasks
 function MPI.Gather!(
-    in_d_map::DistributedMap{T,I},
+    in_d_map::DistributedMap{S,T,I},
     nothing;
-    strategy::Symbol = :RR,
     root::Integer = 0,
     clear::Bool = false
-    ) where {T <: Real, I <: Integer}
+    ) where {T<:Real, I<:Integer, S<:Strategy}
 
     (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "output map on root task can not be `nothing`."))
-    if strategy == :RR #Round Robin, can add more.
-        GatherMap_RR_rest!(in_d_map, root)
-    end
+
+    GatherMap_rest!(in_d_map, root)
+
     if clear
         in_d_map = nothing #free unnecessary copies of map
     end
@@ -420,10 +414,10 @@ end
 """
     Internal function implementing a "Round Robin" strategy.
 """
-function AllgatherMap_RR!(
-    d_map::DistributedMap{T,I},
+function AllgatherMap!(
+    d_map::DistributedMap{RR,T,I},
     map::HealpixMap{T,RingOrder,Array{T,1}}
-    ) where {T <: Real, I <: Integer}
+    ) where {T<:Real, I<:Integer}
 
     comm = d_map.info.comm
     #each task can have at most root_nring + 1
@@ -451,7 +445,7 @@ function AllgatherMap_RR!(
 end
 
 """
-    MPI.Allgather!(in_d_map::DistributedMap{T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
+    MPI.Allgather!(in_d_map::DistributedMap{S,T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
 
     Gathers the `DistributedMap` objects passed on each task overwriting the `out_map`
     object passed in input on EVERY task according to the specified `strategy`
@@ -462,23 +456,20 @@ end
     the (potentially bulky) `DistributedMap` object.
 
     # Arguments:
-    - `in_d_alm::DistributedMap{T,I}`: `DistributedMap` object to gather from the MPI tasks.
-    - `out_d_alm::HealpixMap{T,RingOrder,Array{T,1}}`: output `HealpixMap` object to overwrite.
+    - `in_d_map::DistributedMap{S,T,I}`: `DistributedMap` object to gather from the MPI tasks.
+    - `out_d_map::HealpixMap{T,RingOrder,Array{T,1}}`: output `HealpixMap` object to overwrite.
 
     # Keywords:
-    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
-    in_d_map::DistributedMap{T,I},
+    in_d_map::DistributedMap{S,T,I},
     out_map::HealpixMap{T,RingOrder,Array{T,1}};
-    strategy::Symbol = :RR,
     clear::Bool = false
-    ) where  {T <: Real, I <: Integer}
+    ) where  {T<:Real, I<:Integer, S<:Strategy}
 
-    if strategy == :RR #Round Robin, can add more.
-        AllgatherMap_RR!(in_d_map, out_map)
-    end
+    AllgatherMap!(in_d_map, out_map)
+
     if clear
         in_d_map = nothing
     end
@@ -487,20 +478,20 @@ end
 ## DistributedMap Algebra
 import Base: +, -, *, /
 
-+(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} =
-    DistributedMap{T,I}(a.pixels .+ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
--(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = 
-    DistributedMap{T,I}(a.pixels .- b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
-*(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = 
-    DistributedMap{T,I}(a.pixels .* b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
-/(a::DistributedMap{T,I}, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = 
-    DistributedMap{T,I}(a.pixels ./ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
++(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
+    DistributedMap{S,T,I}(a.pixels .+ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+-(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
+    DistributedMap{S,T,I}(a.pixels .- b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+*(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
+    DistributedMap{S,T,I}(a.pixels .* b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+/(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
+    DistributedMap{S,T,I}(a.pixels ./ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
 
-+(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a.pixels .+ b, a.info)
--(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = a + (-b)
-*(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a.pixels .* b, a.info)
-/(a::DistributedMap{T,I}, b::Number) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a.pixels ./ b, a.info)
++(a::DistributedMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DistributedMap{S,T,I}(a.pixels .+ b, a.info)
+-(a::DistributedMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = a + (-b)
+*(a::DistributedMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DistributedMap{S,T,I}(a.pixels .* b, a.info)
+/(a::DistributedMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DistributedMap{S,T,I}(a.pixels ./ b, a.info)
 
-+(a::Number, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = b + a
-*(a::Number, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = b * a
-/(a::Number, b::DistributedMap{T,I}) where {T <: Real, I <: Integer} = DistributedMap{T,I}(a ./ b.pixels, b.info)
++(a::Number, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} = b + a
+*(a::Number, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} = b * a
+/(a::Number, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} = DistributedMap{S,T,I}(a ./ b.pixels, b.info)

@@ -23,7 +23,7 @@ end
 test_alm_all = Alm(10, 10, [ComplexF64(i) for i in 1:numberOfAlms(10)])
 res_alm_all = Alm(10,10)
 
-d_alm = DistributedAlm()
+d_alm = DistributedAlm{RR}()
 
 MPI.Scatter!(test_alm, d_alm, comm)
 

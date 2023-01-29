@@ -1,5 +1,6 @@
 module HealpixMPI
 
+export Strategy, RR
 export AlmInfoMPI, DistributedAlm
 export GeomInfoMPI, DistributedMap
 export make_mstart_complex, get_nm_RR, get_mval_RR, get_m_tasks_RR
@@ -9,9 +10,11 @@ export alm2cl, synalm!
 using Healpix
 using MPI
 
+include("strategy.jl")
 include("alm.jl")
 include("map.jl")
 include("sht.jl")
 include("cl.jl")
+include("tools.jl")
 
 end # module

@@ -81,7 +81,7 @@ DistributedAlm{S}(alm::Vector{T}, info::AlmInfoMPI{I}) where {S<:Strategy, T<:Nu
     DistributedAlm{S,T,I}(alm, info)
 
 #constructor with only comm
-DistributedAlm{S,T,I}(comm::MPI.Comm) where {S<:Strategy, T<:Number, I<:Integer} = DistributedAlm(Vector{T}(undef, 0), AlmInfoMPI{I}(comm))
+DistributedAlm{S,T,I}(comm::MPI.Comm) where {S<:Strategy, T<:Number, I<:Integer} = DistributedAlm{S}(Vector{T}(undef, 0), AlmInfoMPI{I}(comm))
 DistributedAlm{S}(comm::MPI.Comm) where {S<:Strategy} = DistributedAlm{S, ComplexF64, Int64}(comm)
 
 #empty constructors

@@ -19,7 +19,7 @@ An `GeomInfoMPI` type contains:
 """
 mutable struct GeomInfoMPI{T<:Real, I<:Integer}
     #communicator
-    comm::MPI.Comm #FIXME: move in DistributedMap (?)
+    comm::MPI.Comm
 
     #global info
     nside::I

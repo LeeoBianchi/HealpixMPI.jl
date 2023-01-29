@@ -7,7 +7,8 @@ makedocs(
          sitename = "HealpixMPI.jl",
          modules  = [HealpixMPI],
          pages=[
-                "Home" => "index.md"
+                "Introduction" => "index.md"
+                "Distributed Classes" => "distribute.md"
                ])
 
 deploydocs(;

@@ -65,6 +65,9 @@ function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nt
     d_map.pixels = Ducc0.Sht.leg2map(out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
 end
 
+##################################################################################################
+#MAP2ALM direction
+
 function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm) where {T<:Real}
     c_size = MPI.Comm_size(comm)
     tot_nm = size(in_leg, 1)  #global nm

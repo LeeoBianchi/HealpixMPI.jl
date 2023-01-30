@@ -50,7 +50,8 @@ end
 #for now we only support spin-0
 """
     alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
-
+    alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    
 This function performs an MPI-parallel spherical harmonic transform, computing a distributed map from a set of `DistributedAlm` and places the results
 in the passed `d_map` object.
 
@@ -135,6 +136,7 @@ end
 
 """
     adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
 
 This function performs an MPI-parallel spherical harmonic transform Yᵀ on the distributed map and places the results
 in the passed `d_alm` object.

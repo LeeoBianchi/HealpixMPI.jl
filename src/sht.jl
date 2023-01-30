@@ -53,7 +53,7 @@ function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nt
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
 
     #we first compute the leg's for local m's and all the rings (orderd fron N->S)
-    in_leg = Ducc0.Sht.alm2leg(reshape(d_alm.alm, length(d_alm.alm), 1), UInt64(0), UInt64(d_alm.info.lmax), Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, UInt64(nthreads))
+    in_leg = Ducc0.Sht.alm2leg(reshape(d_alm.alm, length(d_alm.alm), 1), 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
     #we transpose the leg's over tasks
     #FIXME: maybe add leg as a field of Distributed* classes, so we avoid creation every time
     out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1) # tot_nm * loc_nr Matrix.
@@ -62,7 +62,7 @@ function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nt
     communicate_alm2map!(in_leg, out_leg, comm)
 
     #then we use them to get the map
-    d_map.pixels = Ducc0.Sht.leg2map(out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, UInt64(nthreads))[:,1]
+    d_map.pixels = Ducc0.Sht.leg2map(out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
 end
 
 function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm) where {T<:Real}
@@ -105,7 +105,7 @@ end
 function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
 
-    in_leg = Ducc0.Sht.map2leg(reshape(d_map.pixels, length(d_map.pixels), 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), d_alm.info.mmax + 1, 1, Unsigned(nthreads))
+    in_leg = Ducc0.Sht.map2leg(reshape(d_map.pixels, length(d_map.pixels), 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), d_alm.info.mmax, 1, nthreads)
     #we transpose the leg's over tasks
 
     out_leg = Array{ComplexF64,3}(undef, length(d_alm.info.mval), numOfRings(d_map.info.nside), 1) # loc_nm * tot_nr Matrix.
@@ -116,7 +116,7 @@ function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,
     #then we use them to get the map
     theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task
 
-    d_alm.alm = Ducc0.Sht.leg2alm(out_leg, UInt64(0), UInt64(d_alm.info.lmax), Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, UInt64(nthreads))[:,1]
+    d_alm.alm = Ducc0.Sht.leg2alm(out_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, nthreads)[:,1]
 end
 
 #FIXME: add overloads of sht's allowing to pass in & out leg's to overwrite for efficiency.

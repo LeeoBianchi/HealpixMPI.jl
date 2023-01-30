@@ -47,22 +47,50 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
         end
     end
 end
-
 #for now we only support spin-0
-function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+"""
+    alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+
+This function performs an MPI-parallel spherical harmonic transform, computing a distributed map from a set of `DistributedAlm` and places the results
+in the passed `d_map` object.
+
+It must be called simultaneously on all the MPI tasks containing the subsets which form exactly the whole map and alm.
+
+It is possible to pass two auxiliary arrays where the Legandre coefficients will be stored during the transform, this avoids allocating extra memory and improves efficiency.
+
+
+# Arguments:
+
+- `d_alm::DistributedAlm{S,N,I}`: the MPI-distributed spherical harmonic coefficients to transform.
+
+- `d_map::DistributedMap{S,T,I}`: the MPI-distributed map that will contain the result.
+
+# Optionals:
+
+- `aux_in_leg::StridedArray{Complex{T},3}`: (local_nm, tot_nring, 1) auxiliary matrix for alm-side Legandre coefficients.
+
+- `aux_out_leg::StridedArray{Complex{T},3}`: (tot_nm, local_nring, 1) auxiliary matrix for map-side Legandre coefficients.
+
+# Keywords
+
+- `nthreads::Integer = 0`: the number of threads to use for the computation if 0, use as many threads as there are hardware threads available on the system.
+"""
+function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
-
     #we first compute the leg's for local m's and all the rings (orderd fron N->S)
-    in_leg = Ducc0.Sht.alm2leg(reshape(d_alm.alm, length(d_alm.alm), 1), 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
+    Ducc0.Sht.alm2leg!(reshape(d_alm.alm, length(d_alm.alm), 1), aux_in_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
     #we transpose the leg's over tasks
-    #FIXME: maybe add leg as a field of Distributed* classes, so we avoid creation every time
-    out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1) # tot_nm * loc_nr Matrix.
     MPI.Barrier(comm)
-    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
-    communicate_alm2map!(in_leg, out_leg, comm)
-
+    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
+    communicate_alm2map!(aux_in_leg, aux_out_leg, comm)
     #then we use them to get the map
-    d_map.pixels = Ducc0.Sht.leg2map(out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
+    d_map.pixels = Ducc0.Sht.leg2map(aux_out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
+end
+
+function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    aux_in_leg = Array{ComplexF64,3}(undef, (length(d_alm.info.mval), numOfRings(d_map.info.nside), 1)) # loc_nm * tot_nr
+    aux_out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1)            # tot_nm * loc_nr
+    alm2map!(d_alm, d_map, aux_in_leg, aux_out_leg; nthreads = nthreads)
 end
 
 ##################################################################################################
@@ -105,21 +133,48 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     rings_received
 end
 
-function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+"""
+    adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+
+This function performs an MPI-parallel spherical harmonic transform Yᵀ on the distributed map and places the results
+in the passed `d_alm` object.
+
+It must be called simultaneously on all the MPI tasks containing the subsets which form exactly the whole map and alm.
+
+It is possible to pass two auxiliary arrays where the Legandre coefficients will be stored during the transform, this avoids allocating extra memory and improves efficiency.
+
+# Arguments:
+
+- `d_map::DistributedMap{S,T,I}`: the distributed map that must be decomposed in spherical harmonics.
+
+- `alm::Alm{ComplexF64, Array{ComplexF64, 1}}`: the spherical harmonic
+  coefficients to be written to.
+
+# Optionals:
+
+- `aux_in_leg::StridedArray{Complex{T},3}`: (local_nm, tot_nring, 1) auxiliary matrix for map-side Legandre coefficients.
+
+- `aux_out_leg::StridedArray{Complex{T},3}`: (tot_nm, local_nring, 1) auxiliary matrix for alm-side Legandre coefficients.
+
+# Keywords
+
+- `nthreads::Integer = 0`: the number of threads to use for the computation if 0, use as many threads as there are hardware threads available on the system.
+"""
+function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
-
-    in_leg = Ducc0.Sht.map2leg(reshape(d_map.pixels, length(d_map.pixels), 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), d_alm.info.mmax, 1, nthreads)
+    #compute leg
+    Ducc0.Sht.map2leg!(reshape(d_map.pixels, length(d_map.pixels), 1), aux_in_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)
     #we transpose the leg's over tasks
-
-    out_leg = Array{ComplexF64,3}(undef, length(d_alm.info.mval), numOfRings(d_map.info.nside), 1) # loc_nm * tot_nr Matrix.
     MPI.Barrier(comm)
-    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(in_leg)) and out_leg $(size(out_leg))")
-    rings_received = communicate_map2alm!(in_leg, out_leg, comm)
-
-    #then we use them to get the map
+    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
+    rings_received = communicate_map2alm!(aux_in_leg, aux_out_leg, comm) #additional output for reordering thetatot
     theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task
-
-    d_alm.alm = Ducc0.Sht.leg2alm(out_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, nthreads)[:,1]
+    #then we use them to get the alm
+    d_alm.alm = Ducc0.Sht.leg2alm(aux_out_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, nthreads)[:,1]
 end
 
-#FIXME: add overloads of sht's allowing to pass in & out leg's to overwrite for efficiency.
+function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    aux_in_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1)               # tot_nm * loc_nr
+    aux_out_leg = Array{ComplexF64,3}(undef, (length(d_alm.info.mval), numOfRings(d_map.info.nside), 1))  # loc_nm * tot_nr
+    adjoint_alm2map!(d_map, d_alm, aux_in_leg, aux_out_leg; nthreads = nthreads)
+end

@@ -1,5 +1,8 @@
 using Test
-include("../src/sht.jl")
+using MPI
+using Healpix
+include("../src/HealpixMPI.jl")
+using Main.HealpixMPI
 
 MPI.Init()
 
@@ -30,8 +33,8 @@ out_alm2 = deepcopy(test_alm)
 MPI.Gather!(d_alm, out_alm)
 
 ##FIXME: remove when it will be available in Healpix.jl
-using Healpix, Libsharp
-function adjoint_alm2map!(
+using Libsharp
+function HealpixMPI.adjoint_alm2map!(
     map::HealpixMap{Float64,RingOrder,Array{Float64,1}},
     alm::Alm{ComplexF64,Array{ComplexF64,1}}
 )

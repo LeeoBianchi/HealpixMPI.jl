@@ -1,11 +1,9 @@
 include("/home/leoab/OneDrive/UNI/Tesi_Oslo/Ducc0.jl") #FIXME: replace with proper binding to Ducc0
-using MPI
-include("alm.jl")
-include("map.jl")
 
 import Healpix: alm2map! #adjoint_alm2map!, when it will be added in Healpix.jl
 
-function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm) where {T<:Real}
+#round robin a2m communication
+function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
     c_size = MPI.Comm_size(comm)
     tot_nm = size(out_leg, 1) #global nm
     loc_nr = size(out_leg, 2) #local n rings
@@ -51,7 +49,7 @@ end
 """
     alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
-    
+
 This function performs an MPI-parallel spherical harmonic transform, computing a distributed map from a set of `DistributedAlm` and places the results
 in the passed `d_map` object.
 
@@ -83,7 +81,7 @@ function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, au
     #we transpose the leg's over tasks
     MPI.Barrier(comm)
     println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
-    communicate_alm2map!(aux_in_leg, aux_out_leg, comm)
+    communicate_alm2map!(aux_in_leg, aux_out_leg, comm, S)
     #then we use them to get the map
     d_map.pixels = Ducc0.Sht.leg2map(aux_out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
 end
@@ -97,7 +95,8 @@ end
 ##################################################################################################
 #MAP2ALM direction
 
-function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm) where {T<:Real}
+#round robin adj communication
+function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
     c_size = MPI.Comm_size(comm)
     tot_nm = size(in_leg, 1)  #global nm
     loc_nm = size(out_leg, 1) #local nm
@@ -169,7 +168,7 @@ function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,
     #we transpose the leg's over tasks
     MPI.Barrier(comm)
     println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
-    rings_received = communicate_map2alm!(aux_in_leg, aux_out_leg, comm) #additional output for reordering thetatot
+    rings_received = communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
     theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task
     #then we use them to get the alm
     d_alm.alm = Ducc0.Sht.leg2alm(aux_out_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, nthreads)[:,1]

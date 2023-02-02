@@ -1,7 +1,3 @@
-using MPI #then remove, it's already in HealpixMPI.jl
-using Healpix
-
-include("strategy.jl")
 
 #################### WAITING FOR NEW Healpix VERSION:
 
@@ -167,6 +163,8 @@ function ScatterAlm!(
     d_alm.info.mstart = make_mstart_complex(alm.lmax, stride, mval)
     println("DistributedAlm: I am task $c_rank of $c_size, I work on m's $mval of $(alm.mmax) \n")
 end
+
+import MPI: Scatter!, Gather!, Allgather!
 
 """
     MPI.Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DistributedAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}

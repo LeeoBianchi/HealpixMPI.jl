@@ -1,8 +1,3 @@
-using MPI #then remove, it's already in HealpixMPI.jl
-using Healpix #then remove
-
-include("map.jl")
-
 function ScatterArray_RR(
     arr::AA,
     nside::Integer,
@@ -22,6 +17,8 @@ function ScatterArray_RR(
     local_arr = reduce(vcat, local_arr)
     return local_arr
 end
+
+import MPI: Scatter
 
 """
     MPI.Scatter!(arr::AA, nside::Integer, comm::MPI.Comm; strategy::Type = RR, root::Integer = 0) where {T <: Real, AA <: AbstractArray{T,1}}

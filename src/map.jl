@@ -1,7 +1,3 @@
-using MPI #then remove, it's already in HealpixMPI.jl
-using Healpix
-
-include("strategy.jl")
 
 """ struct GeomInfoMPI{I <: Integer, T <: Real}
 
@@ -212,6 +208,8 @@ function ScatterMap!(
     d_map.info.phi0 = phi0
 end
 
+import MPI: Scatter!, Gather!, Allgather!
+
 """
     MPI.Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DistributedMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
     MPI.Scatter!(nothing, out_d_map::DistributedMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
@@ -234,11 +232,11 @@ end
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function MPI.Scatter!(
-    in_map::HealpixMap{T,RingOrder,Array{T,1}},
-    out_d_map::DistributedMap{S,T,I};
+    in_map::HealpixMap{T1,RingOrder,Array{T1,1}},
+    out_d_map::DistributedMap{S,T2,I};
     root::Integer = 0,
     clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
+    ) where {T1<:Real, T2<:Real, I<:Integer, S<:Strategy}
 
     comm = out_d_map.info.comm
     if MPI.Comm_rank(comm) == root

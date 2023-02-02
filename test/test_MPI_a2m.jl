@@ -1,5 +1,8 @@
 using Test
-include("../src/sht.jl")
+using MPI
+using Healpix
+include("../src/HealpixMPI.jl")
+using Main.HealpixMPI
 
 MPI.Init()
 

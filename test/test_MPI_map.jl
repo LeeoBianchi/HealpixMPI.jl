@@ -1,7 +1,8 @@
+using Test
+using MPI
 using Healpix
-import Test
-
-include("../src/map.jl")
+include("../src/HealpixMPI.jl")
+using Main.HealpixMPI
 
 #################################################################
 
@@ -25,7 +26,7 @@ test_map_all = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(
 res_map_all = HealpixMap{Float64, RingOrder}(zeros(nside2npix(nside)))
 
 d_map = DistributedMap{RR}() #inizialize empty DistributedMap
-MPI.Scatter!(test_map, d_map, comm) #fill it 
+MPI.Scatter!(test_map, d_map, comm) #fill it
 
 MPI.Gather!(d_map, res_map, clear=false)
 

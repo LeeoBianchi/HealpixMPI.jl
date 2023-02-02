@@ -1,7 +1,8 @@
+using Test
+using MPI
 using Healpix
-import Test
-
-include("../src/alm.jl")
+include("../src/HealpixMPI.jl")
+using Main.HealpixMPI
 
 #################################################################
 

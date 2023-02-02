@@ -1,6 +1,3 @@
-using MPI
-using Random
-include("alm.jl")
 
 """
     Computes the local contribution to the power spectrum ``C_{\\ell}``.
@@ -38,6 +35,7 @@ function alm2cl(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) wh
 end
 alm2cl(alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = alm2cl(alm, alm)
 
+import Random
 
 """
     synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::AbstractRNG) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
@@ -47,7 +45,7 @@ Generate a set of `DistributedAlm` from a given power spectra array `cl`.
 The output is written into the `Alm` object passed in input.
 An RNG can be specified, otherwise it's defaulted to `Random.GLOBAL_RNG`.
 """
-function synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::AbstractRNG) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
+function synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::Random.AbstractRNG) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
     cl_size = length(cl)
     lmax = alm.info.lmax
     mval = alm.info.mval
@@ -57,7 +55,7 @@ function synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::AbstractRNG) wh
     for m in mval
         for l = m:lmax
             #for m=0 the alm must be real, since alm^R_l,0 = alm^C_l,0, if the field is real!
-            alm.alm[i] = randn(rng, ifelse(m > 0, ComplexF64, Float64))*sqrt(cl[l+1]) #sqrt bc it's the variance
+            alm.alm[i] = Random.randn(rng, ifelse(m > 0, ComplexF64, Float64))*sqrt(cl[l+1]) #sqrt bc it's the variance
             i += 1
         end
     end

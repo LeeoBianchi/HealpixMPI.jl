@@ -1,11 +1,9 @@
-using Healpix
-using MPI
 using Test
+using MPI
+using Healpix
+include("../src/HealpixMPI.jl")
+using Main.HealpixMPI
 using LinearAlgebra
-
-
-include("../src/alm.jl")
-
 #################################################################
 
 MPI.Init()

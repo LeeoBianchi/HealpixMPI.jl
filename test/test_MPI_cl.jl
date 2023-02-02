@@ -1,8 +1,8 @@
-import Healpix
-using MPI
 using Test
-
-include("../src/cl.jl")
+using MPI
+using Healpix
+include("../src/HealpixMPI.jl")
+using Main.HealpixMPI
 
 #################################################################
 

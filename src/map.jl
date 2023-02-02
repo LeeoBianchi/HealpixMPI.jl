@@ -48,11 +48,15 @@ GeomInfoMPI(comm::MPI.Comm) = GeomInfoMPI{Float64, Int64}(comm)
 GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
 GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
 
+################################################# NOTE: added to Healpix.jl then remove.
 """
     Create an array of the colatitude in radians (theta) of each ring index in `rings` for a map with resolution `res`.
+
     If no `rings` array is passed, the computation is performed on all the rings deducted from `res`.
+
+    If an integer `ring` is passed, a single Float value of the colatitude is returned.
 """
-function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer} #maybe add this to Healpix.jl
+function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer}
     theta = Vector{Float64}(undef, length(rings))
     ringinfo = RingInfo(0, 0, 0, 0, 0)
     @inbounds for i in 1:length(rings)
@@ -64,6 +68,7 @@ end
 ring2theta(res::Resolution) = ring2theta(Vector{Int}(1:res.nsideTimesFour-1), res)
 #single ring passed as int:
 ring2theta(ring::Integer, res::Resolution) = getringinfo(res, ring; full=true).colatitude_rad
+##################################################
 
 """
     struct DistributedMap{T<:Number, I<:Integer}
@@ -99,14 +104,12 @@ DistributedMap{S}(comm::MPI.Comm) where {S<:Strategy} = DistributedMap{S, Float6
 DistributedMap{S,T,I}() where {S<:Strategy, T<:Real, I<:Integer} = DistributedMap{S,T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
 DistributedMap{S}() where {S<:Strategy} = DistributedMap{S, Float64, Int64}()
 
-d_map = DistributedMap{RR}()
+############################################### NOTE: added to Healpix.jl then remove.
+Healpix.numOfRings(nside::Integer) = 4*nside - 1
 
-function Healpix.numOfRings(nside::Integer)
-    4*nside - 1
-end
-
-get_equator_idx(nside::Integer) = 2*nside
-get_equator_idx(res::Resolution) = get_equator_idx(res.nside)
+getEquatorIdx(nside::Integer) = 2*nside
+getEquatorIdx(res::Resolution) = getEquatorIdx(res.nside)
+################################################
 
 """ get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer)
@@ -118,7 +121,7 @@ function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
     (eq_idx + c_size - 1 - task_rank) ÷ c_size * 2 - iszero(task_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
 end
-get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(get_equator_idx(res.nside), task_rank, c_size)
+get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(getEquatorIdx(res.nside), task_rank, c_size)
 
 """ get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) where {T <: Real, AA <: AbstractArray{T,1}}
     get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}}
@@ -150,7 +153,7 @@ function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer
     rings
 end
 function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
-    eq_idx = get_equator_idx(nside)
+    eq_idx = getEquatorIdx(nside)
     nrings = get_nrings_RR(eq_idx, t_rank, c_size)
     get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
 end
@@ -182,7 +185,7 @@ function ScatterMap!(
     ringinfo = RingInfo(0, 0, 0, 0, 0) #initialize ring info object
     j = !iszero(c_rank) #index correction factor for when we have the equator (c_rank = 0, j=0), or not (c_rank > 0, j = 1)
     rst = 1 #keeps track of the indexes, to compute rstarts NOTE:(1-based)!!
-    eq_idx = get_equator_idx(res)
+    eq_idx = getEquatorIdx(res)
     @inbounds for i in 1:nrings
         k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
         ring = eq_idx - (-1)^(i + j) * (c_rank + k *c_size) #(-1)^i+j alternates rings north/south
@@ -199,7 +202,6 @@ function ScatterMap!(
     println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res)) \n")
     maxnr = get_nrings_RR(res, 0, c_size)+1
     d_map.pixels = pixels
-    d_map.info.comm = comm
     d_map.info.nside = res.nside
     d_map.info.maxnr = maxnr
     d_map.info.thetatot = ring2theta(res)

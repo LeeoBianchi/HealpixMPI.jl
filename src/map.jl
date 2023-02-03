@@ -195,7 +195,7 @@ function ScatterMap!(
         rst += ringinfo.numOfPixels
     end
     pixels = reduce(vcat, pixels) #FIXME:Is this the most efficient way?
-    println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res)) \n")
+    println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res))")
     maxnr = get_nrings_RR(res, 0, c_size)+1
     d_map.pixels = pixels
     d_map.info.nside = res.nside
@@ -475,17 +475,34 @@ function MPI.Allgather!(
     end
 end
 
+"""
+    ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+
+Similarity operator, returns `true` if the two arguments have matching `info` objects.
+"""
+function ≃(map₁::DistributedMap{S,T,I}, map₂::DistributedMap{S,T,I}) where {S<:Strategy, T<:Real, I<:Integer}
+    (&)((map₁.info.comm == map₂.info.comm),
+        (map₁.info.nside == map₂.info.nside),
+        (map₁.info.maxnr == map₂.info.maxnr),
+        (map₁.info.thetatot == map₂.info.thetatot),
+        (map₁.info.rings == map₂.info.rings),
+        (map₁.info.rstart == map₂.info.rstart),
+        (map₁.info.nphi == map₂.info.nphi),
+        (map₁.info.theta == map₂.info.theta),
+        (map₁.info.phi0 == map₂.info.phi0))
+end
+
 ## DistributedMap Algebra
 import Base: +, -, *, /
 
 +(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DistributedMap{S,T,I}(a.pixels .+ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+    DistributedMap{S,T,I}(a.pixels .+ b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
 -(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DistributedMap{S,T,I}(a.pixels .- b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+    DistributedMap{S,T,I}(a.pixels .- b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
 *(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DistributedMap{S,T,I}(a.pixels .* b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+    DistributedMap{S,T,I}(a.pixels .* b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
 /(a::DistributedMap{S,T,I}, b::DistributedMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DistributedMap{S,T,I}(a.pixels ./ b.pixels, a.info == a.info ? a.info : throw(DomainError(0,"info not matching")))
+    DistributedMap{S,T,I}(a.pixels ./ b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
 
 +(a::DistributedMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DistributedMap{S,T,I}(a.pixels .+ b, a.info)
 -(a::DistributedMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = a + (-b)

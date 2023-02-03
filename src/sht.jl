@@ -1,4 +1,4 @@
-include("/home/leoab/OneDrive/UNI/Tesi_Oslo/Ducc0.jl") #FIXME: replace with proper binding to Ducc0
+include("/home/leoab/OneDrive/UNI/Ducc0/src/Ducc0.jl") #FIXME: replace with proper binding to Ducc0
 
 import Healpix: alm2map! #adjoint_alm2map!, when it will be added in Healpix.jl
 
@@ -31,7 +31,7 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
         filled += send_count
     end
     #2) communicate
-    println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
+    #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
     received_array = MPI.Alltoallv(send_array, send_counts, rec_counts, comm)
 
     #3) unpack what we have received and fill out_leg
@@ -80,7 +80,7 @@ function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, au
     Ducc0.Sht.alm2leg!(reshape(d_alm.alm, length(d_alm.alm), 1), aux_in_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
     #we transpose the leg's over tasks
     MPI.Barrier(comm)
-    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
+    #println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
     communicate_alm2map!(aux_in_leg, aux_out_leg, comm, S)
     #then we use them to get the map
     d_map.pixels = Ducc0.Sht.leg2map(aux_out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
@@ -125,7 +125,7 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     end
 
     #2) communicate
-    println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
+    #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
     received_array = MPI.Alltoallv(send_array, send_counts, rec_counts, comm)
 
     #3) unpack what we have received and fill out_leg
@@ -167,7 +167,7 @@ function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,
     Ducc0.Sht.map2leg!(reshape(d_map.pixels, length(d_map.pixels), 1), aux_in_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)
     #we transpose the leg's over tasks
     MPI.Barrier(comm)
-    println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
+    #println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
     rings_received = communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
     theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task
     #then we use them to get the alm

@@ -12,7 +12,7 @@ csize = MPI.Comm_size(comm)
 root = 0
 
 if crank == root
-    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(2)])
+    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(4)])
     test_alm = Alm(5, 5, [ComplexF64(i) for i in 1:numberOfAlms(5)])
 else
     test_map = nothing
@@ -33,5 +33,5 @@ out_map = deepcopy(test_map)
 MPI.Gather!(d_map, out_map)
 
 if crank == root
-    Test.@test isapprox(out_map.pixels, alm2map(test_alm, 2).pixels) #test against Healpix transform
+    Test.@test isapprox(out_map.pixels, alm2map(test_alm, 4).pixels) #test against Healpix transform
 end

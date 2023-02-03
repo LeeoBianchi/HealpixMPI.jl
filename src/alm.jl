@@ -161,7 +161,7 @@ function ScatterAlm!(
     d_alm.info.maxnm = get_nm_RR(alm.mmax, 0, c_size) #due to RR the maxnm is the one on the task 0
     d_alm.info.mval = mval
     d_alm.info.mstart = make_mstart_complex(alm.lmax, stride, mval)
-    println("DistributedAlm: I am task $c_rank of $c_size, I work on m's $mval of $(alm.mmax) \n")
+    println("DistributedAlm: I am task $c_rank of $c_size, I work on m's $mval of $(alm.mmax)")
 end
 
 import MPI: Scatter!, Gather!, Allgather!
@@ -442,6 +442,21 @@ function MPI.Allgather!(
     end
 end
 
+#########################################################################
+"""
+    ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+
+Similarity operator, returns `true` if the two arguments have matching `info` objects.
+"""
+function ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+    (&)((alm₁.info.comm == alm₂.info.comm),
+        (alm₁.info.lmax == alm₂.info.lmax),
+        (alm₁.info.mmax == alm₂.info.mmax),
+        (alm₁.info.maxnm == alm₂.info.maxnm),
+        (alm₁.info.mval == alm₂.info.mval),
+        (alm₁.info.mstart == alm₂.info.mstart))
+end
+
 ## DistributedAlm Algebra
 import LinearAlgebra: dot
 import Base.Threads
@@ -488,20 +503,20 @@ function dot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where
 
     res = localdot(alm₁, alm₂)
     MPI.Barrier(comm) #FIXME: necessary??
-    println("task $(MPI.Comm_rank(comm)), dot = $res")
+    #println("task $(MPI.Comm_rank(comm)), dot = $res")
     MPI.Allreduce(res, +, comm) #we sum together all the local results on each task
 end
 
 import Base: +, -, *, /
 
 +(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .+ alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+    DistributedAlm{S,T,I}(alm₁.alm .+ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
 -(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .- alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+    DistributedAlm{S,T,I}(alm₁.alm .- alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
 *(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .* alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+    DistributedAlm{S,T,I}(alm₁.alm .* alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
 /(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm ./ alm₂.alm, alm₁.info == alm₂.info ? alm₁.info : throw(DomainError(0,"info not matching")))
+    DistributedAlm{S,T,I}(alm₁.alm ./ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
 
 *(alm₁::DistributedAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
     DistributedAlm{S,T,I}(alm₁.alm .* c, alm₁.info)

@@ -11,9 +11,12 @@ crank = MPI.Comm_rank(comm)
 csize = MPI.Comm_size(comm)
 root = 0
 
+NSIDE = 64
+lmax = 3*NSIDE - 1
+
 if crank == root
-    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(2)])
-    test_alm = Alm(5, 5, [ComplexF64(i) for i in 1:numberOfAlms(5)])
+    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(NSIDE)])
+    test_alm = Alm(lmax, lmax, [ComplexF64(i) for i in 1:numberOfAlms(lmax)])
 else
     test_map = nothing
     test_alm = nothing

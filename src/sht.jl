@@ -5,24 +5,25 @@ import Healpix: alm2map! #adjoint_alm2map!, when it will be added in Healpix.jl
 #round robin a2m communication
 function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
     c_size = MPI.Comm_size(comm)
-    tot_nm = size(out_leg, 1) #global nm
-    loc_nr = size(out_leg, 2) #local n rings
-    tot_nr = size(in_leg, 2)  #global n rings
+    tot_nm, loc_nr = size(out_leg) #global nm, local n rings
+    loc_nm, tot_nr = size(in_leg)  #local nm, global n rings,
     eq_index = (tot_nr + 1) ÷ 2
     nside = eq_index ÷ 2
     tot_mmax = tot_nm-1
 
     #1) we pack the coefficients to send
-    send_array = Vector{ComplexF64}(undef, size(in_leg, 1)*size(in_leg, 2))
+    send_array = Vector{ComplexF64}(undef, loc_nm*tot_nr)
     send_counts = Vector{Int64}(undef, c_size)
     rec_counts = Vector{Int64}(undef, c_size)
     cumrecs = Vector{Int64}(undef, c_size) #sort of cumulative sum corrected for the 1-base of the received counts, needed when unpacking
     filled = 1 #we keep track of how much of send_array we already have filled
     cumrec = 1
     for t_rank in 0:c_size-1
-        local_chunk = reduce(vcat, in_leg[:, get_rindexes_RR(nside, t_rank, c_size), 1])
-        send_count = length(local_chunk)
-        send_array[filled:filled+send_count-1] = local_chunk
+        rindexes = get_rindexes_RR(nside, t_rank, c_size)
+        send_count = length(rindexes)*loc_nm
+        send_matr = @view in_leg[:,rindexes,1]
+        send_arr = @view send_array[filled:filled+send_count-1]
+        copyto!(send_arr, send_matr) #in-place version of reduce(vcat,...)
         send_counts[t_rank+1] = send_count
         rec_count = loc_nr * get_nm_RR(tot_mmax, t_rank, c_size) #local nrings x local nm on task t_rank
         rec_counts[t_rank+1] = rec_count
@@ -77,7 +78,8 @@ It is possible to pass two auxiliary arrays where the Legandre coefficients will
 function alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
     #we first compute the leg's for local m's and all the rings (orderd fron N->S)
-    Ducc0.Sht.alm2leg!(reshape(d_alm.alm, length(d_alm.alm), 1), aux_in_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
+    in_alm=reshape(d_alm.alm, length(d_alm.alm), 1)
+    Ducc0.Sht.alm2leg!(in_alm, aux_in_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
     #we transpose the leg's over tasks
     MPI.Barrier(comm)
     #println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
@@ -98,9 +100,8 @@ end
 #round robin adj communication
 function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
     c_size = MPI.Comm_size(comm)
-    tot_nm = size(in_leg, 1)  #global nm
-    loc_nm = size(out_leg, 1) #local nm
-    tot_nr = size(out_leg, 2)  #global n rings
+    tot_nm, loc_nr = size(in_leg) #global nm, local n rings
+    loc_nm, tot_nr = size(out_leg)   #local nm, global n rings
     eq_index = (tot_nr + 1) ÷ 2
     tot_mmax = tot_nm-1
 
@@ -112,9 +113,11 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     filled_leg = 1 #we keep track of how much of send_array we already have filled
     filled_ring = 1 #we keep track of how much of rings_received we already have filled
     for t_rank in 0:c_size-1
-        local_chunk = reduce(vcat, in_leg[get_mval_RR(tot_mmax, t_rank, c_size) .+ 1, :, 1])
-        send_count = length(local_chunk)
-        send_array[filled_leg:filled_leg+send_count-1] = local_chunk
+        mindexes = get_mval_RR(tot_mmax, t_rank, c_size) .+ 1
+        send_count = length(mindexes)*loc_nr
+        send_matr = @view in_leg[mindexes, :, 1]  #chunk of leg to send to t_rank
+        send_arr = @view send_array[filled_leg:filled_leg+send_count-1] #chunk of send_array to send to t_rank
+        copyto!(send_arr, send_matr) #in-place version of reduce(vcat,...)
         send_counts[t_rank+1] = send_count
         nring_t = get_nrings_RR(eq_index, t_rank, c_size) #nrings on task t_rank
         rec_count = loc_nm * nring_t
@@ -166,7 +169,7 @@ function adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,
     #compute leg
     Ducc0.Sht.map2leg!(reshape(d_map.pixels, length(d_map.pixels), 1), aux_in_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)
     #we transpose the leg's over tasks
-    MPI.Barrier(comm)
+    #MPI.Barrier(comm)
     #println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
     rings_received = communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
     theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task

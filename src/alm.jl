@@ -502,7 +502,7 @@ function dot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     res = localdot(alm₁, alm₂)
-    MPI.Barrier(comm) #FIXME: necessary??
+    #MPI.Barrier(comm) #FIXME: necessary??
     #println("task $(MPI.Comm_rank(comm)), dot = $res")
     MPI.Allreduce(res, +, comm) #we sum together all the local results on each task
 end

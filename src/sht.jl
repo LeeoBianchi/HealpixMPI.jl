@@ -1,4 +1,5 @@
-include("/home/leoab/OneDrive/UNI/Ducc0/src/Ducc0.jl") #FIXME: replace with proper binding to Ducc0
+#include("/home/leoab/OneDrive/UNI/Ducc0/src/Ducc0.jl") #FIXME: replace with proper binding to Ducc0
+using Ducc0
 
 #import Healpix: alm2map! #adjoint_alm2map!, when it will be added in Healpix.jl
 

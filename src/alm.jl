@@ -459,7 +459,6 @@ function ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where
 end
 
 ## DistributedAlm Algebra
-import LinearAlgebra
 import Base.Threads
 
 """

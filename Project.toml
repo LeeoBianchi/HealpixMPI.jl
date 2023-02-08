@@ -4,9 +4,17 @@ authors = ["LeeoBianchi <leobianchi98@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-Healpix = "9f4e344d-96bc-545a-84a3-ae6b9e1b672b"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Healpix = "9f4e344d-96bc-545a-84a3-ae6b9e1b672b"
 
 [compat]
 Healpix = "4.2.0"
 MPI = "0.20.6"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

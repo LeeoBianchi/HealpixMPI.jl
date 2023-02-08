@@ -167,7 +167,6 @@ function ScatterMap!(
     d_map.info.phi0 = phi0
 end
 
-import MPI: Scatter!, Gather!, Allgather!
 
 """
     MPI.Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DistributedMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}

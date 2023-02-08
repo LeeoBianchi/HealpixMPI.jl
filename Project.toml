@@ -8,5 +8,5 @@ Healpix = "9f4e344d-96bc-545a-84a3-ae6b9e1b672b"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 
 [compat]
-Healpix = "4.1.2"
+Healpix = "4.2.0"
 MPI = "0.20.6"

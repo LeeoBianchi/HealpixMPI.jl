@@ -44,28 +44,6 @@ GeomInfoMPI(comm::MPI.Comm) = GeomInfoMPI{Float64, Int64}(comm)
 GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
 GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
 
-################################################# NOTE: added to Healpix.jl then remove.
-"""
-    Create an array of the colatitude in radians (theta) of each ring index in `rings` for a map with resolution `res`.
-
-    If no `rings` array is passed, the computation is performed on all the rings deducted from `res`.
-
-    If an integer `ring` is passed, a single Float value of the colatitude is returned.
-"""
-function ring2theta(rings::Vector{I}, res::Resolution) where {I<:Integer}
-    theta = Vector{Float64}(undef, length(rings))
-    ringinfo = RingInfo(0, 0, 0, 0, 0)
-    @inbounds for i in 1:length(rings)
-        getringinfo!(res, rings[i], ringinfo; full=true)
-        theta[i] = ringinfo.colatitude_rad
-    end
-    theta
-end
-ring2theta(res::Resolution) = ring2theta(Vector{Int}(1:res.nsideTimesFour-1), res)
-#single ring passed as int:
-ring2theta(ring::Integer, res::Resolution) = getringinfo(res, ring; full=true).colatitude_rad
-##################################################
-
 """
     struct DistributedMap{T<:Number, I<:Integer}
 
@@ -100,12 +78,6 @@ DistributedMap{S}(comm::MPI.Comm) where {S<:Strategy} = DistributedMap{S, Float6
 DistributedMap{S,T,I}() where {S<:Strategy, T<:Real, I<:Integer} = DistributedMap{S,T,I}(Vector{T}(undef, 0), GeomInfoMPI{T,I}())
 DistributedMap{S}() where {S<:Strategy} = DistributedMap{S, Float64, Int64}()
 
-############################################### NOTE: added to Healpix.jl then remove.
-Healpix.numOfRings(nside::Integer) = 4*nside - 1
-
-getEquatorIdx(nside::Integer) = 2*nside
-getEquatorIdx(res::Resolution) = getEquatorIdx(res.nside)
-################################################
 
 """ get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer)
@@ -117,20 +89,7 @@ function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
     (eq_idx + c_size - 1 - task_rank) ÷ c_size * 2 - iszero(task_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
 end
-get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(getEquatorIdx(res.nside), task_rank, c_size)
-
-""" get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) where {T <: Real, AA <: AbstractArray{T,1}}
-    get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}}
-
-    Returns the pixels in `map` corresponding to the given `ring_info` or `ring_idx`.
-"""
-function get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_info::RingInfo) where {T <: Real, AA <: AbstractArray{T,1}}
-    first_pix_idx = ring_info.firstPixIdx
-    map[first_pix_idx:(first_pix_idx + ring_info.numOfPixels - 1)]
-end
-# maybe add this to Healpix.jl
-get_ring_pixels(map::HealpixMap{T,RingOrder,AA}, ring_idx::Integer) where {T <: Real, AA <: AbstractArray{T,1}} =
-    get_ring_pixels(map, getringinfo(map.resolution, ring_idx; full=false))
+get_nrings_RR(res::Healpix.Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(Healpix.getEquatorIdx(res.nside), task_rank, c_size)
 
 """ get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
     get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
@@ -149,7 +108,7 @@ function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer
     rings
 end
 function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
-    eq_idx = getEquatorIdx(nside)
+    eq_idx = Healpix.getEquatorIdx(nside)
     nrings = get_nrings_RR(eq_idx, t_rank, c_size)
     get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
 end
@@ -161,7 +120,7 @@ end
     The input map object is broadcasted by `MPI.Scatter!`.
 """
 function ScatterMap!(
-    map::HealpixMap{T,RingOrder,Array{T,1}},
+    map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}},
     d_map::DistributedMap{RR,T,I} #Round Robin, can add more as overloads
     ) where {T <: Real, I <: Integer}
 
@@ -172,35 +131,35 @@ function ScatterMap!(
     nrings = get_nrings_RR(res, c_rank, c_size) #number of LOCAL rings
     #if we have too many MPI tasks, some will be empty
     (!iszero(nrings)) || throw(DomainError(0, "$c_rank-th MPI task has no rings."))
-    rings = Vector{Int}(undef, nrings)
+    rings = Vector{Int}(undef, nrings)  #vector of local rings
     rstart = Vector{Int}(undef, nrings)
-    pixels = Vector{Vector{Float64}}(undef, nrings) #vector of rings
+    pixels = Vector{Vector{Float64}}(undef, nrings) #vector of vector of local pixels
     theta = Vector{Float64}(undef, nrings) #colatitude of every ring
-    phi0 = Vector{Float64}(undef, nrings)  #longitude of the first pixel of every ring #NOTE: how to do this with subset of maps?
+    phi0 = Vector{Float64}(undef, nrings)  #longitude of the first pixel of every ring
     nphi = Vector{Float64}(undef, nrings)
-    ringinfo = RingInfo(0, 0, 0, 0, 0) #initialize ring info object
+    ringinfo = Healpix.RingInfo(0, 0, 0, 0, 0) #initialize ring info object
     j = !iszero(c_rank) #index correction factor for when we have the equator (c_rank = 0, j=0), or not (c_rank > 0, j = 1)
-    rst = 1 #keeps track of the indexes, to compute rstarts NOTE:(1-based)!!
-    eq_idx = getEquatorIdx(res)
+    rst = 1 #keeps track of the indexes, to compute rstarts
+    eq_idx = Healpix.getEquatorIdx(res)
     @inbounds for i in 1:nrings
         k = (i - j) ÷ 2 #ring pair index (the same for each couple of corresponding north/south rings)
         ring = eq_idx - (-1)^(i + j) * (c_rank + k *c_size) #(-1)^i+j alternates rings north/south
         rings[i] = ring
-        getringinfo!(res, ring, ringinfo; full=true)
+        Healpix.getringinfo!(res, ring, ringinfo; full=true)
         theta[i] = ringinfo.colatitude_rad
-        phi0[i] = pix2ang(map, ringinfo.firstPixIdx)[2]
-        pixels[i] = get_ring_pixels(map, ringinfo)
+        phi0[i] = Healpix.pix2ang(map, ringinfo.firstPixIdx)[2]
+        pixels[i] = Healpix.getRingPixels(map, ringinfo)
         rstart[i] = rst
         nphi[i] = ringinfo.numOfPixels
         rst += ringinfo.numOfPixels
     end
-    pixels = reduce(vcat, pixels) #FIXME:Is this the most efficient way?
-    println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(numOfRings(res))")
+    pixels = reduce(vcat, pixels) #FIXME: Make this as in communicate_alm2map
+    println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(Healpix.numOfRings(res))")
     maxnr = get_nrings_RR(res, 0, c_size)+1
     d_map.pixels = pixels
     d_map.info.nside = res.nside
     d_map.info.maxnr = maxnr
-    d_map.info.thetatot = ring2theta(res)
+    d_map.info.thetatot = Healpix.ring2theta(res)
     d_map.info.rings = rings
     d_map.info.rstart = rstart
     d_map.info.nphi = nphi
@@ -232,7 +191,7 @@ import MPI: Scatter!, Gather!, Allgather!
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function MPI.Scatter!(
-    in_map::HealpixMap{T1,RingOrder,Array{T1,1}},
+    in_map::Healpix.HealpixMap{T1,Healpix.RingOrder,Array{T1,1}},
     out_d_map::DistributedMap{S,T2,I};
     root::Integer = 0,
     clear::Bool = false
@@ -289,19 +248,19 @@ end
 """
 function GatherMap_root!(
     d_map::DistributedMap{RR,T,I},
-    map::HealpixMap{T,RingOrder,Array{T,1}},
+    map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}},
     root::Integer
     ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
 
     resolution = map.resolution
-    ringinfo = RingInfo(0, 0, 0, 0, 0)
+    ringinfo = Healpix.RingInfo(0, 0, 0, 0, 0)
     rings = d_map.info.rings
     rstart = d_map.info.rstart
     @inbounds for ri in 1:d_map.info.maxnr
         if ri <= length(rings)
-            getringinfo!(resolution, rings[ri], ringinfo; full=false) #it's a cheap computation
+            Healpix.getringinfo!(resolution, rings[ri], ringinfo; full=false) #it's a cheap computation
             local_count = ringinfo.numOfPixels
             local_displ = ringinfo.firstPixIdx - 1
             @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
@@ -329,13 +288,13 @@ function GatherMap_rest!(
     ) where {T <: Real, I <: Integer}
 
     comm = d_map.info.comm
-    resolution = Resolution(d_map.info.nside)
-    ringinfo = RingInfo(0, 0, 0, 0, 0)
+    resolution = Healpix.Resolution(d_map.info.nside)
+    ringinfo = Healpix.RingInfo(0, 0, 0, 0, 0)
     rings = d_map.info.rings
     rstart = d_map.info.rstart
     @inbounds for ri in 1:d_map.info.maxnr
         if ri <= length(rings)
-            getringinfo!(resolution, rings[ri], ringinfo; full=false)
+            Healpix.getringinfo!(resolution, rings[ri], ringinfo; full=false)
             local_count = ringinfo.numOfPixels
             local_displ = ringinfo.firstPixIdx - 1
             @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
@@ -377,7 +336,7 @@ end
 """
 function MPI.Gather!(
     in_d_map::DistributedMap{S,T,I},
-    out_map::HealpixMap{T,RingOrder,Array{T,1}};
+    out_map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}};
     root::Integer = 0,
     clear::Bool = false
     ) where {T<:Real, I<:Integer, S<:Strategy}
@@ -416,18 +375,18 @@ end
 """
 function AllgatherMap!(
     d_map::DistributedMap{RR,T,I},
-    map::HealpixMap{T,RingOrder,Array{T,1}}
+    map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}}
     ) where {T<:Real, I<:Integer}
 
     comm = d_map.info.comm
     #each task can have at most root_nring + 1
     res = map.resolution
-    ringinfo = RingInfo(0, 0, 0, 0, 0)
+    ringinfo = Healpix.RingInfo(0, 0, 0, 0, 0)
     rings = d_map.info.rings
     rstart = d_map.info.rstart
     @inbounds for ri in 1:d_map.info.maxnr
         if ri <= length(rings)
-            getringinfo!(res, rings[ri], ringinfo; full=false) #it's a cheap computation
+            Healpix.getringinfo!(res, rings[ri], ringinfo; full=false) #it's a cheap computation
             local_count = ringinfo.numOfPixels
             local_displ = ringinfo.firstPixIdx - 1
             @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1] #we select that ring's pixels
@@ -464,7 +423,7 @@ end
 """
 function MPI.Allgather!(
     in_d_map::DistributedMap{S,T,I},
-    out_map::HealpixMap{T,RingOrder,Array{T,1}};
+    out_map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}};
     clear::Bool = false
     ) where  {T<:Real, I<:Integer, S<:Strategy}
 

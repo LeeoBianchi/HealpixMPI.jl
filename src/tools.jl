@@ -5,11 +5,11 @@ function ScatterArray_RR(
     ) where {T <: Real, AA <: AbstractArray{T,1}}
     local_rings = get_rindexes_RR(nside, MPI.Comm_rank(comm), MPI.Comm_size(comm))
     local_arr = Vector{Vector{Float64}}(undef, length(local_rings)) #vector of local
-    ring_info = RingInfo(0, 0, 0, 0, 0) #initialize ring info object
-    res = Resolution(nside)
+    ring_info = Healpix.RingInfo(0, 0, 0, 0, 0) #initialize ring info object
+    res = Healpix.Resolution(nside)
     i = 1
     for ring in local_rings
-        getringinfo!(res, ring, ring_info; full=false)
+        Healpix.getringinfo!(res, ring, ring_info; full=false)
         first_pix_idx = ring_info.firstPixIdx
         local_arr[i] = arr[first_pix_idx:(first_pix_idx + ring_info.numOfPixels - 1)]
         i+=1
@@ -17,8 +17,6 @@ function ScatterArray_RR(
     local_arr = reduce(vcat, local_arr)
     return local_arr
 end
-
-import MPI: Scatter
 
 """
     MPI.Scatter!(arr::AA, nside::Integer, comm::MPI.Comm; strategy::Type = RR, root::Integer = 0) where {T <: Real, AA <: AbstractArray{T,1}}

@@ -17,7 +17,6 @@ function alm2cl_local(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,
     cl
 end
 
-import Healpix: alm2cl
 """
     alm2cl(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Vector{T}
     alm2cl(alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Vector{T}
@@ -26,14 +25,14 @@ Compute the power spectrum ``C_{\\ell}`` on each MPI task from the spherical har
 coefficients of one or two fields, distributed as `DistributedAlm`.
 
 """
-function alm2cl(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+function Healpix.alm2cl(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     local_cl = alm2cl_local(alm₁, alm₂)
-    MPI.Barrier(comm) #FIXME: necessary??
+    #MPI.Barrier(comm) #FIXME: necessary??
     MPI.Allreduce(local_cl, +, comm)
 end
-alm2cl(alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = alm2cl(alm, alm)
+Healpix.alm2cl(alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = Healpix.alm2cl(alm, alm)
 
 import Random
 
@@ -45,7 +44,7 @@ Generate a set of `DistributedAlm` from a given power spectra array `cl`.
 The output is written into the `Alm` object passed in input.
 An RNG can be specified, otherwise it's defaulted to `Random.GLOBAL_RNG`.
 """
-function synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::Random.AbstractRNG) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
+function Healpix.synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::Random.AbstractRNG) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
     cl_size = length(cl)
     lmax = alm.info.lmax
     mval = alm.info.mval
@@ -60,5 +59,5 @@ function synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}, rng::Random.Abstract
         end
     end
 end
-synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}) where {S<:Strategy, T<:Real, N<:Number, I<:Integer} =
-    synalm!(cl, alm, Random.GLOBAL_RNG)
+Healpix.synalm!(cl::Vector{T}, alm::DistributedAlm{S,N,I}) where {S<:Strategy, T<:Real, N<:Number, I<:Integer} =
+    Healpix.synalm!(cl, alm, Random.GLOBAL_RNG)

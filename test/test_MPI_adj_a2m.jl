@@ -35,25 +35,6 @@ out_alm = deepcopy(test_alm)
 out_alm2 = deepcopy(test_alm)
 MPI.Gather!(d_alm, out_alm)
 
-##FIXME: remove when it will be available in Healpix.jl
-using Libsharp
-function HealpixMPI.adjoint_alm2map!(
-    map::HealpixMap{Float64,RingOrder,Array{Float64,1}},
-    alm::Alm{ComplexF64,Array{ComplexF64,1}}
-)
-    geom_info = Libsharp.make_healpix_geom_info(map.resolution.nside, 1)
-    alm_info = Libsharp.make_triangular_alm_info(alm.lmax, alm.mmax, 1)
-    Libsharp.sharp_execute!(
-        Libsharp.SHARP_Yt,
-        0,
-        [alm.alm],
-        [map.pixels],
-        geom_info,
-        alm_info,
-        Libsharp.SHARP_DP,
-    )
-end
-##
 
 if crank == root
     adjoint_alm2map!(test_map, out_alm2)

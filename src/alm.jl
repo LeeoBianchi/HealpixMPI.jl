@@ -1,5 +1,6 @@
 
 #################### WAITING FOR NEW Healpix VERSION:
+#=
 
 function each_ell_idx(alm::Alm{Complex{T}}, m::Integer) where {T <: Number}
     (m <= alm.mmax) || throw(DomainError(m, "`m` is greater than mmax"))
@@ -9,7 +10,7 @@ end
 function each_ell_idx(alm::Alm{Complex{T}}, ms::AbstractArray{I, 1}) where {T <: Number, I <: Integer}
     reduce(vcat, [each_ell_idx(alm, m) for m in ms])
 end
-
+=#
 #########################################################
 
 """ struct AlmInfoMPI{I <: Integer}
@@ -145,7 +146,7 @@ end
     The input Alm object is broadcasted by `MPI.Scatter!`.
 """
 function ScatterAlm!(
-    alm::Alm{T,Array{T,1}},
+    alm::Healpix.Alm{T,Array{T,1}},
     d_alm::DistributedAlm{RR,T,I}
     ) where {T<:Number, I<:Integer}
 
@@ -155,7 +156,7 @@ function ScatterAlm!(
     mval = get_mval_RR(alm.mmax, c_rank, c_size)
     #if we have too many MPI tasks, some will be empty
     (!iszero(length(mval))) || throw(DomainError(0, "$c_rank-th task is empty."))
-    d_alm.alm = @view alm.alm[each_ell_idx(alm, mval)]
+    d_alm.alm = @view alm.alm[Healpix.each_ell_idx(alm, mval)]
     d_alm.info.lmax = alm.lmax          #update info inplace
     d_alm.info.mmax = alm.mmax
     d_alm.info.maxnm = get_nm_RR(alm.mmax, 0, c_size) #due to RR the maxnm is the one on the task 0
@@ -189,7 +190,7 @@ import MPI: Scatter!, Gather!, Allgather!
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Scatter!(
-    in_alm::Alm{T,Array{T,1}},
+    in_alm::Healpix.Alm{T,Array{T,1}},
     out_d_alm::DistributedAlm{S,T,I};
     root::Integer = 0,
     clear::Bool = false
@@ -247,7 +248,7 @@ end
 """
 function GatherAlm_root!(
     d_alm::DistributedAlm{RR,T,I},
-    alm::Alm{T,Array{T,1}},
+    alm::Healpix.Alm{T,Array{T,1}},
     root::Integer
     ) where {T<:Number, I<:Integer}
 
@@ -338,7 +339,7 @@ end
 """
 function MPI.Gather!(
     in_d_alm::DistributedAlm{S,T,I},
-    out_alm::Alm{T,Array{T,1}};
+    out_alm::Healpix.Alm{T,Array{T,1}};
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
@@ -376,7 +377,7 @@ end
 """
 function AllgatherAlm!(
     d_alm::DistributedAlm{RR,T,I},
-    alm::Alm{T,Array{T,1}},
+    alm::Healpix.Alm{T,Array{T,1}},
     ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
@@ -431,7 +432,7 @@ end
 """
 function MPI.Allgather!(
     in_d_alm::DistributedAlm{S,T,I},
-    out_alm::Alm{T,Array{T,1}};
+    out_alm::Healpix.Alm{T,Array{T,1}};
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
@@ -458,7 +459,7 @@ function ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where
 end
 
 ## DistributedAlm Algebra
-import LinearAlgebra: dot
+import LinearAlgebra
 import Base.Threads
 
 """
@@ -498,12 +499,10 @@ end
 
     MPI-parallel dot product between two `DistributedAlm` object of matching size.
 """
-function dot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+function LinearAlgebra.dot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     res = localdot(alm₁, alm₂)
-    #MPI.Barrier(comm) #FIXME: necessary??
-    #println("task $(MPI.Comm_rank(comm)), dot = $res")
     MPI.Allreduce(res, +, comm) #we sum together all the local results on each task
 end
 
@@ -535,8 +534,8 @@ representing an ℓ-dependent function.
 - `alms::DistributedAlm{S,T,I}`: The subset of spherical harmonics coefficients
 - `fl::AbstractVector{T}`: The array giving the factor f_ℓ by which to multiply a_ℓm
 
-""" #FIXME: then import it from Healpix.jl and overlad it when it will be available
-function almxfl!(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
+"""
+function Healpix.almxfl!(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
 
     lmax = alm.info.lmax
     mval = alm.info.mval
@@ -566,10 +565,10 @@ an ℓ-dependent function, without changing the a_ℓm passed in input.
 
 #RETURNS
 - `Alm{S,T}`: The result of a_ℓm * f_ℓ.
-""" #FIXME: idem..
-function almxfl(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
+"""
+function Healpix.almxfl(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
     alm_new = deepcopy(alm)
-    almxfl!(alm_new, fl)
+    Healpix.almxfl!(alm_new, fl)
     alm_new
 end
 
@@ -580,7 +579,7 @@ end
     Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DistributedAlm`
     object is returned.
 """
-*(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = almxfl(alm, fl)
+*(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, fl)
 *(fl::AA, alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = alm*fl
 
 """ /(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
@@ -588,4 +587,4 @@ end
     Perform an element-wise division by a function of ℓ in a_ℓm space.
     A new `Alm` object is returned.
 """
-/(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = almxfl(alm, 1. ./ fl)
+/(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, 1. ./ fl)

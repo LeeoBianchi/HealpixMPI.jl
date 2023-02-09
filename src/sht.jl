@@ -1,4 +1,3 @@
-#include("/home/leoab/OneDrive/UNI/Ducc0/src/Ducc0.jl") #FIXME: replace with proper binding to Ducc0
 using Ducc0
 
 #import Healpix: alm2map! #adjoint_alm2map!, when it will be added in Healpix.jl
@@ -86,7 +85,7 @@ function Healpix.alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,
     #println("on task $(MPI.Comm_rank(comm)), we have in_leg with shape $(size(aux_in_leg)) and out_leg $(size(aux_out_leg))")
     communicate_alm2map!(aux_in_leg, aux_out_leg, comm, S)
     #then we use them to get the map
-    d_map.pixels = Ducc0.Sht.leg2map(aux_out_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)[:,1]
+    Ducc0.Sht.leg2map!(aux_out_leg, reshape(d_map.pixels, :, 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)
 end
 
 function Healpix.alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
@@ -175,7 +174,7 @@ function Healpix.adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::Distribut
     rings_received = communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
     theta_reordered = d_map.info.thetatot[rings_received] #colatitudes ordered by task first and RR within each task
     #then we use them to get the alm
-    d_alm.alm = Ducc0.Sht.leg2alm(aux_out_leg, 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, nthreads)[:,1]
+    Ducc0.Sht.leg2alm!(aux_out_leg, reshape(d_alm.alm, :, 1), 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, theta_reordered, nthreads)
 end
 
 function Healpix.adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::DistributedAlm{S,N,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}

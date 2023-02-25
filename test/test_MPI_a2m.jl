@@ -15,8 +15,8 @@ NSIDE = 64
 lmax = 3*NSIDE - 1
 
 if crank == root
-    test_map = HealpixMap{Float64, RingOrder}([Float64(i) for i in 1:nside2npix(NSIDE)])
-    test_alm = Alm(lmax, lmax, [ComplexF64(i) for i in 1:numberOfAlms(lmax)])
+    test_map = HealpixMap{Float64, RingOrder}(NSIDE)
+    test_alm = Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax))) #[ComplexF64(i) for i in 1:numberOfAlms(lmax)])
 else
     test_map = nothing
     test_alm = nothing

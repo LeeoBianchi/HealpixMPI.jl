@@ -91,7 +91,7 @@ DistributedAlm{S}() where {S<:Strategy} = DistributedAlm{S, ComplexF64, Int64}()
 
     Return number of m's on specified task in a Round Robin strategy
 """
-function get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
+function get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)::Integer
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
     (global_mmax + c_size - task_rank) ÷ c_size # =nm
 end
@@ -100,7 +100,7 @@ end
 
     Return array of m values on specified task in a Round Robin strategy
 """
-function get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
+function get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)::Vector{Int}
     nm = get_nm_RR(global_mmax, task_rank, c_size)
     mval = Vector{Int}(undef, nm)
     @inbounds for i in 1:nm
@@ -114,7 +114,7 @@ end
     Computes an array containing the task each m in the full range [0, `mmax`]
     is assigned to according to a Round Robin strategy, given the communicator size.
 """
-function get_m_tasks_RR(mmax::Integer, c_size::Integer)
+function get_m_tasks_RR(mmax::Integer, c_size::Integer)::Vector{Int}
     res = Vector{Int}(undef, mmax+1)
     for m in 0:mmax
         res[m+1] = rem(m,c_size)
@@ -162,7 +162,7 @@ function ScatterAlm!(
     d_alm.info.maxnm = get_nm_RR(alm.mmax, 0, c_size) #due to RR the maxnm is the one on the task 0
     d_alm.info.mval = mval
     d_alm.info.mstart = make_mstart_complex(alm.lmax, stride, mval)
-    println("DistributedAlm: I am task $c_rank of $c_size, I work on m's $mval of $(alm.mmax)")
+    println("DistributedAlm: I am task $c_rank of $c_size, I work on $(length(mval)) m's of $(alm.mmax)")
 end
 
 import MPI: Scatter!, Gather!, Allgather!

@@ -7,7 +7,7 @@ An `GeomInfoMPI` type contains:
 - `comm`: MPI communicator used.
 - `nside`: NSIDE parameter of the whole map.
 - `maxnr`: maximum number of rings in the subsets, over the tasks involved.
-- `thetatot`: array of the colatitudes of the whole map.
+- `thetatot`: array of the colatitudes of the whole map ordered by task first and RR within each task
 - `rings`: array of the ring indexes (w.r.t. the whole map) contained in the subset.
 - `rstart`: array containing the 1-based index of the first pixel of each ring contained in the subset.
 - `nphi`: array containing the number of pixels in every ring contained in the subset.
@@ -85,11 +85,11 @@ DistributedMap{S}() where {S<:Strategy} = DistributedMap{S, Float64, Int64}()
     Return number of rings on specified task given total map resolution
     and communicator size according to Round Robin.
 """
-function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
+function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)::Integer
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
     (eq_idx + c_size - 1 - task_rank) ÷ c_size * 2 - iszero(task_rank) #num of local rings we avoid counting the equator twice (assigned to 0-th task)
 end
-get_nrings_RR(res::Healpix.Resolution, task_rank::Integer, c_size::Integer) = get_nrings_RR(Healpix.getEquatorIdx(res.nside), task_rank, c_size)
+get_nrings_RR(res::Healpix.Resolution, task_rank::Integer, c_size::Integer)::Integer = get_nrings_RR(Healpix.getEquatorIdx(res.nside), task_rank, c_size)
 
 """ get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
     get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
@@ -98,7 +98,7 @@ get_nrings_RR(res::Healpix.Resolution, task_rank::Integer, c_size::Integer) = ge
     and communicator size, ordered from the equator to the poles alternating N/S,
     according to Round Robin.
 """
-function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
+function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)::Vector{Int}
     rings = Vector{Int}(undef, local_nrings)
     j = !iszero(t_rank)
     @inbounds for i in 1:local_nrings
@@ -107,10 +107,25 @@ function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer
     end
     rings
 end
-function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
+function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)::Vector{Int}
     eq_idx = Healpix.getEquatorIdx(nside)
     nrings = get_nrings_RR(eq_idx, t_rank, c_size)
     get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
+end
+
+""" get_rindexes_tot_RR(eq_idx::Integer, c_size::Integer)
+
+    Return array of ring indexes ordered by task first and RR within each task
+"""
+function get_rindexes_tot_RR(eq_index::Integer, c_size::Integer)
+    filled = 1 #we keep track of how much of rindexes we already have filled
+    rindexes = Vector{Int}(undef, eq_index*2-1)
+    for t_rank in 0:c_size-1
+        nring = get_nrings_RR(eq_index, t_rank, c_size)
+        rindexes[filled:filled+nring-1] = get_rindexes_RR(nring, eq_index, t_rank, c_size)
+        filled += nring
+    end
+    rindexes
 end
 
 """
@@ -154,12 +169,14 @@ function ScatterMap!(
         rst += ringinfo.numOfPixels
     end
     pixels = reduce(vcat, pixels) #FIXME: Make this as in communicate_alm2map
-    println("DistributedMap: I am task $c_rank of $c_size, I work on rings $rings of $(Healpix.numOfRings(res))")
+    println("DistributedMap: I am task $c_rank of $c_size, I work on $(length(rings)) rings of $(Healpix.numOfRings(res))")
     maxnr = get_nrings_RR(res, 0, c_size)+1
     d_map.pixels = pixels
     d_map.info.nside = res.nside
     d_map.info.maxnr = maxnr
-    d_map.info.thetatot = Healpix.ring2theta(res)
+    thetatot = Healpix.ring2theta(res)
+    rindexes = get_rindexes_tot_RR(eq_idx, c_size)
+    d_map.info.thetatot = thetatot[rindexes] #colatitudes ordered by task first and RR within each task
     d_map.info.rings = rings
     d_map.info.rstart = rstart
     d_map.info.nphi = nphi

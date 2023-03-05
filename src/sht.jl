@@ -1,7 +1,4 @@
-#using Ducc0
-include("/home/leoab/OneDrive/UNI/Ducc0/src/Ducc0.jl")
-using .Ducc0
-using InteractiveUtils
+using Ducc0
 
 #round robin a2m communication
 function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
@@ -39,7 +36,6 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
             out_leg[mi, ri, 1] = rec_array[idx]
         end
     end
-    println(" ")
 end
 
 #for now we only support spin-0
@@ -81,7 +77,11 @@ function Healpix.alm2map!(d_alm::DistributedAlm{S,N,I}, d_map::DistributedMap{S,
     thetatot = d_map.info.thetatot
     Ducc0.Sht.alm2leg!(in_alm, aux_in_leg, 0, lmax, cmval, cmstart, 1, thetatot, nthreads)
     #we transpose the leg's over tasks
-    communicate_alm2map!(aux_in_leg, aux_out_leg, comm, S)
+    if MPI.Comm_size(comm) == 1
+        aux_out_leg = aux_in_leg #we avoid useless communication on 1-task case
+    else
+        communicate_alm2map!(aux_in_leg, aux_out_leg, comm, S)
+    end
     #then we use them to get the map
     Ducc0.Sht.leg2map!(aux_out_leg, reshape(d_map.pixels, :, 1), Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)
 end
@@ -122,8 +122,7 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
 
     #2) communicate
     #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
-    #rec_array = Vector{ComplexF64}(undef, loc_nm*tot_nr)
-    MPI.Alltoallv!(MPI.VBuffer(send_array, send_counts), MPI.VBuffer(out_leg, rec_counts), comm) #send_arr gets changed in place
+    MPI.Alltoallv!(MPI.VBuffer(send_array, send_counts), MPI.VBuffer(out_leg, rec_counts), comm)
 end
 
 """
@@ -159,7 +158,11 @@ function Healpix.adjoint_alm2map!(d_map::DistributedMap{S,T,I}, d_alm::Distribut
     #compute leg
     Ducc0.Sht.map2leg!(reshape(d_map.pixels, length(d_map.pixels), 1), aux_in_leg, Csize_t.(d_map.info.nphi), d_map.info.phi0, Csize_t.(d_map.info.rstart), 1, nthreads)
     #we transpose the leg's over tasks
-    @time communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
+    if MPI.Comm_size(comm) == 1
+        aux_out_leg = aux_in_leg #we avoid useless communication on 1-task case
+    else
+        communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
+    end
     #then we use them to get the alm
     Ducc0.Sht.leg2alm!(aux_out_leg, reshape(d_alm.alm, :, 1), 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
 end

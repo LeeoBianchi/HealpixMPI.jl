@@ -6,7 +6,7 @@ function alm2cl_local(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,
     (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
 
     lmax = alm₁.info.lmax
-    cl = zeros(T, lmax + 1)
+    cl = zeros(Float64, lmax + 1)
     i = 1
     for m in alm₁.info.mval
         for l = m:lmax

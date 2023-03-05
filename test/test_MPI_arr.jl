@@ -13,7 +13,7 @@ crank = MPI.Comm_rank(comm)
 csize = MPI.Comm_size(comm)
 root = 0
 
-#we test that the scattered array elements match the corresponding DistributedMap pixels
+#we test that the scattered array elements match the corresponding DMap pixels
 nside = 8
 
 if crank == root
@@ -24,7 +24,7 @@ else
     test_map = nothing
 end
 
-d_map = DistributedMap{RR}()
+d_map = DMap{RR}()
 MPI.Scatter!(test_map, d_map, comm)
 local_arr = MPI.Scatter(test_arr, nside, comm)
 

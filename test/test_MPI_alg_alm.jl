@@ -19,7 +19,7 @@ else
     test_alm = nothing
 end
 
-d_alm = DistributedAlm{RR}()
+d_alm = DAlm{RR}()
 
 MPI.Scatter!(test_alm, d_alm, comm)
 

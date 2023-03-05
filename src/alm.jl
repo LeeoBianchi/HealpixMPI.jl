@@ -15,7 +15,7 @@ end
 
 """ struct AlmInfoMPI{I <: Integer}
 
-Information describing an MPI-distributed subset of `Alm`, contained in a `DistributedAlm`.
+Information describing an MPI-distributed subset of `Alm`, contained in a `DAlm`.
 
 An `AlmInfoMPI` type contains:
 - `comm`: MPI communicator used.
@@ -66,24 +66,24 @@ The `AlmInfo` contained in `info` must match exactly the characteristic of the A
 this can be constructed through the function `make_general_alm_info`, for instance.
 
 """
-mutable struct DistributedAlm{S<:Strategy, T<:Number, I<:Integer}
+mutable struct DAlm{S<:Strategy, T<:Number, I<:Integer}
     alm::Vector{T}
     info::AlmInfoMPI{I}
 
-    DistributedAlm{S,T,I}(alm::Vector{T}, info::AlmInfoMPI{I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm::Vector{T}, info::AlmInfoMPI{I}) where {S<:Strategy, T<:Number, I<:Integer} =
         new{S,T,I}(alm, info)
 end
 
-DistributedAlm{S}(alm::Vector{T}, info::AlmInfoMPI{I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm, info)
+DAlm{S}(alm::Vector{T}, info::AlmInfoMPI{I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm, info)
 
 #constructor with only comm
-DistributedAlm{S,T,I}(comm::MPI.Comm) where {S<:Strategy, T<:Number, I<:Integer} = DistributedAlm{S}(Vector{T}(undef, 0), AlmInfoMPI{I}(comm))
-DistributedAlm{S}(comm::MPI.Comm) where {S<:Strategy} = DistributedAlm{S, ComplexF64, Int64}(comm)
+DAlm{S,T,I}(comm::MPI.Comm) where {S<:Strategy, T<:Number, I<:Integer} = DAlm{S}(Vector{T}(undef, 0), AlmInfoMPI{I}(comm))
+DAlm{S}(comm::MPI.Comm) where {S<:Strategy} = DAlm{S, ComplexF64, Int64}(comm)
 
 #empty constructors
-DistributedAlm{S,T,I}() where {S<:Strategy, T<:Number, I<:Integer} = DistributedAlm{S}(Vector{T}(undef, 0), AlmInfoMPI{I}())
-DistributedAlm{S}() where {S<:Strategy} = DistributedAlm{S, ComplexF64, Int64}()
+DAlm{S,T,I}() where {S<:Strategy, T<:Number, I<:Integer} = DAlm{S}(Vector{T}(undef, 0), AlmInfoMPI{I}())
+DAlm{S}() where {S<:Strategy} = DAlm{S, ComplexF64, Int64}()
 
 # MPI Overloads:
 ## SCATTER
@@ -147,7 +147,7 @@ end
 """
 function ScatterAlm!(
     alm::Healpix.Alm{T,Array{T,1}},
-    d_alm::DistributedAlm{RR,T,I}
+    d_alm::DAlm{RR,T,I}
     ) where {T<:Number, I<:Integer}
 
     stride = 1
@@ -162,18 +162,18 @@ function ScatterAlm!(
     d_alm.info.maxnm = get_nm_RR(alm.mmax, 0, c_size) #due to RR the maxnm is the one on the task 0
     d_alm.info.mval = mval
     d_alm.info.mstart = make_mstart_complex(alm.lmax, stride, mval)
-    println("DistributedAlm: I am task $c_rank of $c_size, I work on $(length(mval)) m's of $(alm.mmax)")
+    println("DAlm: I am task $c_rank of $c_size, I work on $(length(mval)) m's of $(alm.mmax)")
 end
 
 import MPI: Scatter!, Gather!, Allgather!
 
 """
-    MPI.Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DistributedAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    MPI.Scatter!(in_alm::Nothing, out_d_alm::DistributedAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    MPI.Scatter!(in_alm, out_d_alm::DistributedAlm{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    MPI.Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    MPI.Scatter!(in_alm::Nothing, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    MPI.Scatter!(in_alm, out_d_alm::DAlm{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
     Distributes the `Alm` object passed in input on the `root` task overwriting the
-    `DistributedAlm` objects passed on each task, according to the specified strategy
+    `DAlm` objects passed on each task, according to the specified strategy
     (by default ":RR" for Round Robin).
 
     As in the standard MPI function, the `in_alm` in input can be `nothing` on non-root tasks,
@@ -183,7 +183,7 @@ import MPI: Scatter!, Gather!, Allgather!
 
     # Arguments:
     - `in_alm::Alm{T,Array{T,1}}`: `Alm` object to distribute over the MPI tasks.
-    - `out_d_alm::DistributedAlm{T}`: output `DistributedAlm` object.
+    - `out_d_alm::DAlm{T}`: output `DAlm` object.
 
     # Keywords:
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
@@ -191,7 +191,7 @@ import MPI: Scatter!, Gather!, Allgather!
 """
 function MPI.Scatter!(
     in_alm::Healpix.Alm{T,Array{T,1}},
-    out_d_alm::DistributedAlm{S,T,I};
+    out_d_alm::DAlm{S,T,I};
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
@@ -213,7 +213,7 @@ end
 #non root node
 function MPI.Scatter!(
     nothing,
-    out_d_alm::DistributedAlm{S,T,I};
+    out_d_alm::DAlm{S,T,I};
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
@@ -231,7 +231,7 @@ end
 
 function MPI.Scatter!(
     in_alm,
-    out_d_alm::DistributedAlm{S,T,I},
+    out_d_alm::DAlm{S,T,I},
     comm::MPI.Comm;
     root::Integer = 0,
     clear::Bool = false
@@ -247,7 +247,7 @@ end
     Specifically relative to the root-task.
 """
 function GatherAlm_root!(
-    d_alm::DistributedAlm{RR,T,I},
+    d_alm::DAlm{RR,T,I},
     alm::Healpix.Alm{T,Array{T,1}},
     root::Integer
     ) where {T<:Number, I<:Integer}
@@ -286,7 +286,7 @@ end
     Specifically relative to non root-tasks: no output is returned.
 """
 function GatherAlm_rest!(
-    d_alm::DistributedAlm{RR,T,I},
+    d_alm::DAlm{RR,T,I},
     root::Integer
     ) where {T<:Number, I<:Integer}
 
@@ -314,10 +314,10 @@ function GatherAlm_rest!(
 end
 
 """
-    MPI.Gather!(in_d_alm::DistributedAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    MPI.Gather!(in_d_alm::DistributedAlm{S,T,I}, out_alm::Nothing, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    MPI.Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    MPI.Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Nothing, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
-    Gathers the `DistributedAlm` objects passed on each task overwriting the `Alm`
+    Gathers the `DAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
     (by default `:RR` for Round Robin). Note that the strategy must match the one used
     to "scatter" the a_lm.
@@ -326,10 +326,10 @@ end
     since it will be ignored anyway.
 
     If the keyword `clear` is set to `true` it frees the memory of each task from
-    the (potentially bulky) `DistributedAlm` object.
+    the (potentially bulky) `DAlm` object.
 
     # Arguments:
-    - `in_d_alm::DistributedAlm{T}`: `DistributedAlm` object to gather from the MPI tasks.
+    - `in_d_alm::DAlm{T}`: `DAlm` object to gather from the MPI tasks.
     - `out_d_alm::Alm{T,Array{T,1}}`: output `Alm` object.
 
     # Keywords:
@@ -338,7 +338,7 @@ end
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Gather!(
-    in_d_alm::DistributedAlm{S,T,I},
+    in_d_alm::DAlm{S,T,I},
     out_alm::Healpix.Alm{T,Array{T,1}};
     root::Integer = 0,
     clear::Bool = false
@@ -356,7 +356,7 @@ end
 
 #allows non-root tasks to pass nothing as output
 function MPI.Gather!(
-    in_d_alm::DistributedAlm{S,T,I},
+    in_d_alm::DAlm{S,T,I},
     nothing;
     root::Integer = 0,
     clear::Bool = false
@@ -376,7 +376,7 @@ end
     Internal function implementing a "Round Robin" strategy.
 """
 function AllgatherAlm!(
-    d_alm::DistributedAlm{RR,T,I},
+    d_alm::DAlm{RR,T,I},
     alm::Healpix.Alm{T,Array{T,1}},
     ) where {T<:Number, I<:Integer}
 
@@ -409,9 +409,9 @@ function AllgatherAlm!(
 end
 
 """
-    MPI.Allgather!(in_d_alm::DistributedAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    MPI.Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
-    Gathers the `DistributedAlm` objects passed on each task overwriting the `Alm`
+    Gathers the `DAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
     (by default `:RR` for Round Robin). Note that the strategy must match the one used
     to "scatter" the a_lm.
@@ -420,10 +420,10 @@ end
     since it will be ignored anyway.
 
     If the keyword `clear` is set to `true` it frees the memory of each task from
-    the (potentially bulky) `DistributedAlm` object.
+    the (potentially bulky) `DAlm` object.
 
     # Arguments:
-    - `in_d_alm::DistributedAlm{T}`: `DistributedAlm` object to gather from the MPI tasks.
+    - `in_d_alm::DAlm{T}`: `DAlm` object to gather from the MPI tasks.
     - `out_d_alm::Alm{T,Array{T,1}}`: output `Alm` object.
 
     # Keywords:
@@ -431,7 +431,7 @@ end
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function MPI.Allgather!(
-    in_d_alm::DistributedAlm{S,T,I},
+    in_d_alm::DAlm{S,T,I},
     out_alm::Healpix.Alm{T,Array{T,1}};
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
@@ -445,11 +445,11 @@ end
 
 #########################################################################
 """
-    ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+    ≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
 
 Similarity operator, returns `true` if the two arguments have matching `info` objects.
 """
-function ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+function ≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     (&)((alm₁.info.comm == alm₂.info.comm),
         (alm₁.info.lmax == alm₂.info.lmax),
         (alm₁.info.mmax == alm₂.info.mmax),
@@ -458,18 +458,18 @@ function ≃(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where
         (alm₁.info.mstart == alm₂.info.mstart))
 end
 
-## DistributedAlm Algebra
+## DAlm Algebra
 import Base.Threads
 
 """
-    localdot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
+    localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
 
     Internal function for the MPI-parallel dot product.
     It performs a dot product LOCALLY on the current MPI task between the two
-    `DistributedAlm`s passed in input.
+    `DAlm`s passed in input.
 
 """
-function localdot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+function localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     lmax = (alm₁.info.lmax == alm₁.info.lmax) ? alm₁.info.lmax : throw(DomainError(1, "lmax must match"))
     mval = (alm₁.info.mval == alm₂.info.mval) ? alm₁.info.mval : throw(DomainError(2, "mval must match"))
     mstart = (alm₁.info.mstart == alm₂.info.mstart) ? alm₁.info.mstart : throw(DomainError(3, "mstarts must match"))
@@ -494,11 +494,11 @@ function localdot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) 
 end
 
 """
-    dot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
+    dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
 
-    MPI-parallel dot product between two `DistributedAlm` object of matching size.
+    MPI-parallel dot product between two `DAlm` object of matching size.
 """
-function LinearAlgebra.dot(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+function LinearAlgebra.dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     res = localdot(alm₁, alm₂)
@@ -507,34 +507,34 @@ end
 
 import Base: +, -, *, /
 
-+(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .+ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
--(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .- alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
-*(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .* alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
-/(alm₁::DistributedAlm{S,T,I}, alm₂::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm ./ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
++(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm .+ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
+-(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm .- alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
+*(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm .* alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
+/(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm ./ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
 
-*(alm₁::DistributedAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm .* c, alm₁.info)
-*(c::Number, alm₁::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = alm₁ * c
-/(alm₁::DistributedAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
-    DistributedAlm{S,T,I}(alm₁.alm ./ c, alm₁.info)
+*(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm .* c, alm₁.info)
+*(c::Number, alm₁::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = alm₁ * c
+/(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm ./ c, alm₁.info)
 
 
 """
-    almxfl!(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+    almxfl!(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
 
-Multiply IN-PLACE a subset of a_ℓm in the form of `DistributedAlm` by a vector `fl`
+Multiply IN-PLACE a subset of a_ℓm in the form of `DAlm` by a vector `fl`
 representing an ℓ-dependent function.
 
 # ARGUMENTS
-- `alms::DistributedAlm{S,T,I}`: The subset of spherical harmonics coefficients
+- `alms::DAlm{S,T,I}`: The subset of spherical harmonics coefficients
 - `fl::AbstractVector{T}`: The array giving the factor f_ℓ by which to multiply a_ℓm
 
 """
-function Healpix.almxfl!(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
+function Healpix.almxfl!(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
 
     lmax = alm.info.lmax
     mval = alm.info.mval
@@ -553,37 +553,37 @@ function Healpix.almxfl!(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy,
 end
 
 """
-    almxfl(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+    almxfl(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
 
-Multiply a subset of a_ℓm in the form of `DistributedAlm` by a vector b_ℓ representing
+Multiply a subset of a_ℓm in the form of `DAlm` by a vector b_ℓ representing
 an ℓ-dependent function, without changing the a_ℓm passed in input.
 
 # ARGUMENTS
-- `alm::DistributedAlm{S,T,I}`: The array representing the spherical harmonics coefficients
+- `alm::DAlm{S,T,I}`: The array representing the spherical harmonics coefficients
 - `fl::AbstractVector{T}`: The array giving the factor f_ℓ by which to multiply a_ℓm
 
 #RETURNS
 - `Alm{S,T}`: The result of a_ℓm * f_ℓ.
 """
-function Healpix.almxfl(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
+function Healpix.almxfl(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
     alm_new = deepcopy(alm)
     Healpix.almxfl!(alm_new, fl)
     alm_new
 end
 
-""" *(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
-    *(fl::AA, alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+""" *(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+    *(fl::AA, alm::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
 
-    Perform the product of a `DistributedAlm` object by a function of ℓ in a_ℓm space.
-    Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DistributedAlm`
+    Perform the product of a `DAlm` object by a function of ℓ in a_ℓm space.
+    Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DAlm`
     object is returned.
 """
-*(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, fl)
-*(fl::AA, alm::DistributedAlm{S,T,I}) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = alm*fl
+*(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, fl)
+*(fl::AA, alm::DAlm{S,T,I}) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = alm*fl
 
-""" /(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+""" /(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
 
     Perform an element-wise division by a function of ℓ in a_ℓm space.
     A new `Alm` object is returned.
 """
-/(alm::DistributedAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, 1. ./ fl)
+/(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, 1. ./ fl)

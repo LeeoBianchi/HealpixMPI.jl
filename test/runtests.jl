@@ -1,24 +1,24 @@
 using Test
 
-@testset "DistributedMap: Scatter & Gather" begin
+@testset "DMap: Scatter & Gather" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_map.jl"
     res = run(cm)
     @test success(res)
 end
 
-@testset "DistributedMap: Algebra" begin
+@testset "DMap: Algebra" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_alg_map.jl"
     res = run(cm)
     @test success(res)
 end
 
-@testset "DistributedAlm: Scatter & Gather" begin
+@testset "DAlm: Scatter & Gather" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_alm.jl"
     res = run(cm)
     @test success(res)
 end
 
-@testset "DistributedAlm: Algebra" begin
+@testset "DAlm: Algebra" begin
     cm = @cmd "mpirun -n 3 julia test_MPI_alg_alm.jl"
     res = run(cm)
     @test success(res)

@@ -22,9 +22,9 @@ else
     test_alm = nothing
 end
 
-d_map = DistributedMap{RR}(comm)
+d_map = DMap{RR}(comm)
 MPI.Scatter!(test_map, d_map, comm)
-d_alm = DistributedAlm{RR}(comm)
+d_alm = DAlm{RR}(comm)
 MPI.Scatter!(test_alm, d_alm, comm)
 
 MPI.Barrier(comm)

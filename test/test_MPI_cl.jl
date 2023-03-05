@@ -15,7 +15,7 @@ root = 0
 
 test_alm = Alm(5, 5, [ComplexF64(i) for i in 1:numberOfAlms(5)])
 
-d_alm = DistributedAlm{RR}()
+d_alm = DAlm{RR}()
 
 MPI.Scatter!(test_alm, d_alm, comm)
 

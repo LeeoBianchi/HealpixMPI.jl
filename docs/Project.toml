@@ -1,0 +1,8 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Healpix = "9f4e344d-96bc-545a-84a3-ae6b9e1b672b"
+HealpixMPI = "13ef2956-0416-496b-acf0-802ddd2ca2dc"
+
+

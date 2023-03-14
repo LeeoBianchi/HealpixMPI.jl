@@ -1,5 +1,6 @@
 
-""" struct GeomInfoMPI{I <: Integer, T <: Real}
+""" 
+	struct GeomInfoMPI{I <: Integer, T <: Real}
 
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DMap`.
 

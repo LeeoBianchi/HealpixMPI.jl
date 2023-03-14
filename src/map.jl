@@ -4,7 +4,7 @@
 
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DMap`.
 
-An `GeomInfoMPI` type contains:
+A `GeomInfoMPI` type contains:
 - `comm`: MPI communicator used.
 - `nside`: NSIDE parameter of the whole map.
 - `maxnr`: maximum number of rings in the subsets, over the tasks involved.

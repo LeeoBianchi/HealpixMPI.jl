@@ -168,9 +168,9 @@ end
 import MPI: Scatter!, Gather!, Allgather!
 
 """
-    MPI.Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    MPI.Scatter!(in_alm::Nothing, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    MPI.Scatter!(in_alm, out_d_alm::DAlm{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Scatter!(in_alm::Nothing, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Scatter!(in_alm, out_d_alm::DAlm{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
     Distributes the `Alm` object passed in input on the `root` task overwriting the
     `DAlm` objects passed on each task, according to the specified strategy
@@ -189,7 +189,7 @@ import MPI: Scatter!, Gather!, Allgather!
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
-function MPI.Scatter!(
+function Scatter!(
     in_alm::Healpix.Alm{T,Array{T,1}},
     out_d_alm::DAlm{S,T,I};
     root::Integer = 0,
@@ -211,7 +211,7 @@ function MPI.Scatter!(
 end
 
 #non root node
-function MPI.Scatter!(
+function Scatter!(
     nothing,
     out_d_alm::DAlm{S,T,I};
     root::Integer = 0,
@@ -229,7 +229,7 @@ function MPI.Scatter!(
     end
 end
 
-function MPI.Scatter!(
+function Scatter!(
     in_alm,
     out_d_alm::DAlm{S,T,I},
     comm::MPI.Comm;

@@ -15,6 +15,6 @@ makedocs(
                 "Spherical Harmonics" => "sht.md"
                ])
 
-deploydocs(;
-    repo="github.com/LeeoBianchi/HealpixMPI.jl",
+deploydocs(
+    repo="github.com/LeeoBianchi/HealpixMPI.jl.git",
 )

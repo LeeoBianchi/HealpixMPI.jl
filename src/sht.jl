@@ -41,7 +41,7 @@ end
 
 #for now we only support spin-0
 """
-    alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
 
 This function performs an MPI-parallel spherical harmonic transform, computing a distributed map from a set of `DAlm` and places the results
@@ -127,7 +127,7 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
 end
 
 """
-    adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
 
 This function performs an MPI-parallel spherical harmonic transform Yᵀ on the distributed map and places the results

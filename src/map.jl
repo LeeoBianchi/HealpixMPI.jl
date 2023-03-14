@@ -1,5 +1,5 @@
 
-""" 
+"""
 	struct GeomInfoMPI{I <: Integer, T <: Real}
 
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DMap`.
@@ -83,8 +83,8 @@ DMap{S}() where {S<:Strategy} = DMap{S, Float64, Int64}()
 """ get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer)
 
-    Return number of rings on specified task given total map resolution
-    and communicator size according to Round Robin.
+Return number of rings on specified task given total map resolution
+and communicator size according to Round Robin.
 """
 function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)::Integer
     (task_rank < c_size) || throw(DomainError(0, "$task_rank can not exceed communicator size"))
@@ -95,9 +95,9 @@ get_nrings_RR(res::Healpix.Resolution, task_rank::Integer, c_size::Integer)::Int
 """ get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
     get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
 
-    Return array of rings on specified task (0-base index) given total map resolution
-    and communicator size, ordered from the equator to the poles alternating N/S,
-    according to Round Robin.
+Return array of rings on specified task (0-base index) given total map resolution
+and communicator size, ordered from the equator to the poles alternating N/S,
+according to Round Robin.
 """
 function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)::Vector{Int}
     rings = Vector{Int}(undef, local_nrings)
@@ -116,7 +116,7 @@ end
 
 """ get_rindexes_tot_RR(eq_idx::Integer, c_size::Integer)
 
-    Return array of ring indexes ordered by task first and RR within each task
+Return array of ring indexes ordered by task first and RR within each task
 """
 function get_rindexes_tot_RR(eq_index::Integer, c_size::Integer)
     filled = 1 #we keep track of how much of rindexes we already have filled
@@ -132,8 +132,8 @@ end
 """
     Internal function implementing a "Round Robin" strategy (note the type rquirement on d_map).
 
-    Here the input map is supposed to be on every task as a copy.
-    The input map object is broadcasted by `MPI.Scatter!`.
+Here the input map is supposed to be on every task as a copy.
+The input map object is broadcasted by `MPI.Scatter!`.
 """
 function ScatterMap!(
     map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}},
@@ -191,22 +191,22 @@ import MPI: Scatter!, Gather!, Allgather!
     Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
     Scatter!(nothing, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
 
-    Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
-    `DMap` objects passed on each task, according to the specified strategy
-    (by default ":RR" for Round Robin).
+Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
+`DMap` objects passed on each task, according to the specified strategy
+(by default ":RR" for Round Robin).
 
-    As in the standard MPI function, the `in_map` in input can be `nothing` on non-root tasks,
-    since it will be ignored anyway.
+As in the standard MPI function, the `in_map` in input can be `nothing` on non-root tasks,
+since it will be ignored anyway.
 
-    If the keyword `clear` is set to `true` it frees the memory of each task from the (potentially bulky) `HealpixMap` object.
+If the keyword `clear` is set to `true` it frees the memory of each task from the (potentially bulky) `HealpixMap` object.
 
-    # Arguments:
-    - `in_map::HealpixMap{T,RingOrder,Array{T,1}}`: `HealpixMap` object to distribute over the MPI tasks.
-    - `out_d_map::DMap{S,T,I}`: output `DMap` object.
+# Arguments:
+- `in_map::HealpixMap{T,RingOrder,Array{T,1}}`: `HealpixMap` object to distribute over the MPI tasks.
+- `out_d_map::DMap{S,T,I}`: output `DMap` object.
 
-    # Keywords:
-    - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
-    - `clear::Bool`: if true deletes the input map after having performed the "scattering".
+# Keywords:
+- `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
+- `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function Scatter!(
     in_map::Healpix.HealpixMap{T1,Healpix.RingOrder,Array{T1,1}},
@@ -262,7 +262,7 @@ end
 """
     Internal function implementing a "Round Robin" strategy.
 
-    Specifically relative to the root-task.
+Specifically relative to the root-task.
 """
 function GatherMap_root!(
     d_map::DMap{RR,T,I},
@@ -298,7 +298,7 @@ end
 """
     Internal function implementing a "Round Robin" strategy.
 
-    Specifically relative to non root-tasks: no output is returned.
+Specifically relative to non root-tasks: no output is returned.
 """
 function GatherMap_rest!(
     d_map::DMap{RR,T,I},
@@ -332,25 +332,25 @@ end
     Gather!(in_d_map::DMap{T, I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
     Gather!(in_d_map::DMap{T, I}, out_map::Nothing, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
 
-    Gathers the `DMap` objects passed on each task overwriting the `HealpixMap`
-    object passed in input on the `root` task according to the specified `strategy`
-    (by default `:RR` for Round Robin). Note that the strategy must match the one used
-    to "scatter" the map.
+Gathers the `DMap` objects passed on each task overwriting the `HealpixMap`
+object passed in input on the `root` task according to the specified `strategy`
+(by default `:RR` for Round Robin). Note that the strategy must match the one used
+to "scatter" the map.
 
-    As in the standard MPI function, the `out_map` can be `nothing` on non-root tasks,
-    since it will be ignored anyway.
+As in the standard MPI function, the `out_map` can be `nothing` on non-root tasks,
+since it will be ignored anyway.
 
-    If the keyword `clear` is set to `true` it frees the memory of each task from
-    the (potentially bulky) `DMap` object.
+If the keyword `clear` is set to `true` it frees the memory of each task from
+the (potentially bulky) `DMap` object.
 
-    # Arguments:
-    - `in_d_map::DMap{T, I}`: `DMap` object to gather from the MPI tasks.
-    - `out_map::HealpixMap{T,RingOrder,Array{T,1}}`: output `Map` object.
+# Arguments:
+- `in_d_map::DMap{T, I}`: `DMap` object to gather from the MPI tasks.
+- `out_map::HealpixMap{T,RingOrder,Array{T,1}}`: output `Map` object.
 
-    # Keywords:
-    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
-    - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
-    - `clear::Bool`: if true deletes the input `DMap` after having performed the "scattering".
+# Keywords:
+- `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
+- `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
+- `clear::Bool`: if true deletes the input `DMap` after having performed the "scattering".
 """
 function Gather!(
     in_d_map::DMap{S,T,I},
@@ -424,20 +424,20 @@ end
 """
     Allgather!(in_d_map::DMap{S,T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
 
-    Gathers the `DMap` objects passed on each task overwriting the `out_map`
-    object passed in input on EVERY task according to the specified `strategy`
-    (by default `:RR` for Round Robin). Note that the strategy must match the one used
-    to "scatter" the map.
+Gathers the `DMap` objects passed on each task overwriting the `out_map`
+object passed in input on EVERY task according to the specified `strategy`
+(by default `:RR` for Round Robin). Note that the strategy must match the one used
+to "scatter" the map.
 
-    If the keyword `clear` is set to `true` it frees the memory of each task from
-    the (potentially bulky) `DMap` object.
+If the keyword `clear` is set to `true` it frees the memory of each task from
+the (potentially bulky) `DMap` object.
 
-    # Arguments:
-    - `in_d_map::DMap{S,T,I}`: `DMap` object to gather from the MPI tasks.
-    - `out_d_map::HealpixMap{T,RingOrder,Array{T,1}}`: output `HealpixMap` object to overwrite.
+# Arguments:
+- `in_d_map::DMap{S,T,I}`: `DMap` object to gather from the MPI tasks.
+- `out_d_map::HealpixMap{T,RingOrder,Array{T,1}}`: output `HealpixMap` object to overwrite.
 
-    # Keywords:
-    - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
+# Keywords:
+- `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function Allgather!(
     in_d_map::DMap{S,T,I},

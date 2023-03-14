@@ -13,7 +13,7 @@ end
 =#
 #########################################################
 
-""" 
+"""
 	struct AlmInfoMPI{I <: Integer}
 
 Information describing an MPI-distributed subset of `Alm`, contained in a `DAlm`.
@@ -52,7 +52,7 @@ AlmInfoMPI{I}() where {I <: Integer} = AlmInfoMPI{I}(MPI.COMM_NULL)
 AlmInfoMPI() = AlmInfoMPI{Int64}()
 
 
-""" 
+"""
 	struct DAlm{S<:Strategy, T<:Number, I<:Integer}
 
 An MPI-distributed subset of harmonic coefficients a_ℓm, referring only to certain values of m.
@@ -415,24 +415,24 @@ end
 """
     Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
-    Gathers the `DAlm` objects passed on each task overwriting the `Alm`
-    object passed in input on the `root` task according to the specified `strategy`
-    (by default `:RR` for Round Robin). Note that the strategy must match the one used
-    to "scatter" the a_lm.
+Gathers the `DAlm` objects passed on each task overwriting the `Alm`
+object passed in input on the `root` task according to the specified `strategy`
+(by default `:RR` for Round Robin). Note that the strategy must match the one used
+to "scatter" the a_lm.
 
-    As in the standard MPI function, the `out_alm` can be `nothing` on non-root tasks,
-    since it will be ignored anyway.
+As in the standard MPI function, the `out_alm` can be `nothing` on non-root tasks,
+since it will be ignored anyway.
 
-    If the keyword `clear` is set to `true` it frees the memory of each task from
-    the (potentially bulky) `DAlm` object.
+If the keyword `clear` is set to `true` it frees the memory of each task from
+the (potentially bulky) `DAlm` object.
 
-    # Arguments:
-    - `in_d_alm::DAlm{T}`: `DAlm` object to gather from the MPI tasks.
-    - `out_d_alm::Alm{T,Array{T,1}}`: output `Alm` object.
+# Arguments:
+- `in_d_alm::DAlm{T}`: `DAlm` object to gather from the MPI tasks.
+- `out_d_alm::Alm{T,Array{T,1}}`: output `Alm` object.
 
-    # Keywords:
-    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
-    - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
+# Keywords:
+- `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
+- `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function Allgather!(
     in_d_alm::DAlm{S,T,I},
@@ -467,9 +467,9 @@ end
 """
     localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
 
-    Internal function for the MPI-parallel dot product.
-    It performs a dot product LOCALLY on the current MPI task between the two
-    `DAlm`s passed in input.
+Internal function for the MPI-parallel dot product.
+It performs a dot product LOCALLY on the current MPI task between the two
+`DAlm`s passed in input.
 
 """
 function localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
@@ -500,7 +500,7 @@ import LinearAlgebra: dot
 """
     dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
 
-    MPI-parallel dot product between two `DAlm` object of matching size.
+MPI-parallel dot product between two `DAlm` object of matching size.
 """
 function dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
@@ -533,7 +533,7 @@ import Base: +, -, *, /
 Multiply IN-PLACE a subset of a_ℓm in the form of `DAlm` by a vector `fl`
 representing an ℓ-dependent function.
 
-# ARGUMENTS
+# Arguments
 - `alms::DAlm{S,T,I}`: The subset of spherical harmonics coefficients
 - `fl::AbstractVector{T}`: The array giving the factor f_ℓ by which to multiply a_ℓm
 
@@ -562,11 +562,11 @@ end
 Multiply a subset of a_ℓm in the form of `DAlm` by a vector b_ℓ representing
 an ℓ-dependent function, without changing the a_ℓm passed in input.
 
-# ARGUMENTS
+# Arguments
 - `alm::DAlm{S,T,I}`: The array representing the spherical harmonics coefficients
 - `fl::AbstractVector{T}`: The array giving the factor f_ℓ by which to multiply a_ℓm
 
-#RETURNS
+# Returns
 - `Alm{S,T}`: The result of a_ℓm * f_ℓ.
 """
 function Healpix.almxfl(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
@@ -578,9 +578,9 @@ end
 """ *(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
     *(fl::AA, alm::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
 
-    Perform the product of a `DAlm` object by a function of ℓ in a_ℓm space.
-    Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DAlm`
-    object is returned.
+Perform the product of a `DAlm` object by a function of ℓ in a_ℓm space.
+Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DAlm`
+object is returned.
 """
 *(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, fl)
 *(fl::AA, alm::DAlm{S,T,I}) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = alm*fl

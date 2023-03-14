@@ -314,8 +314,8 @@ function GatherAlm_rest!(
 end
 
 """
-    MPI.Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    MPI.Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Nothing, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Nothing, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
     Gathers the `DAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
@@ -337,7 +337,7 @@ end
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
-function MPI.Gather!(
+function Gather!(
     in_d_alm::DAlm{S,T,I},
     out_alm::Healpix.Alm{T,Array{T,1}};
     root::Integer = 0,
@@ -355,7 +355,7 @@ function MPI.Gather!(
 end
 
 #allows non-root tasks to pass nothing as output
-function MPI.Gather!(
+function Gather!(
     in_d_alm::DAlm{S,T,I},
     nothing;
     root::Integer = 0,
@@ -409,7 +409,7 @@ function AllgatherAlm!(
 end
 
 """
-    MPI.Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
     Gathers the `DAlm` objects passed on each task overwriting the `Alm`
     object passed in input on the `root` task according to the specified `strategy`
@@ -430,7 +430,7 @@ end
     - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
-function MPI.Allgather!(
+function Allgather!(
     in_d_alm::DAlm{S,T,I},
     out_alm::Healpix.Alm{T,Array{T,1}};
     clear::Bool = false
@@ -459,7 +459,6 @@ function ≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Nu
 end
 
 ## DAlm Algebra
-import Base.Threads
 
 """
     localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
@@ -493,12 +492,13 @@ function localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, 
     return res_m0 + 2*res_rest
 end
 
+import LinearAlgebra: dot
 """
     dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} -> Number
 
     MPI-parallel dot product between two `DAlm` object of matching size.
 """
-function LinearAlgebra.dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+function dot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     res = localdot(alm₁, alm₂)

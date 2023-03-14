@@ -184,10 +184,11 @@ function ScatterMap!(
     d_map.info.phi0 = phi0
 end
 
+import MPI: Scatter!, Gather!, Allgather!
 
 """
-    MPI.Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
-    MPI.Scatter!(nothing, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
+    Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
+    Scatter!(nothing, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
 
     Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
     `DMap` objects passed on each task, according to the specified strategy
@@ -206,7 +207,7 @@ end
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
-function MPI.Scatter!(
+function Scatter!(
     in_map::Healpix.HealpixMap{T1,Healpix.RingOrder,Array{T1,1}},
     out_d_map::DMap{S,T2,I};
     root::Integer = 0,
@@ -227,7 +228,7 @@ function MPI.Scatter!(
     end
 end
 
-function MPI.Scatter!(
+function Scatter!(
     nothing,
     out_d_map::DMap{S,T,I};
     root::Integer = 0,
@@ -245,7 +246,7 @@ function MPI.Scatter!(
     end
 end
 
-function MPI.Scatter!(
+function Scatter!(
     in_map,
     out_d_map::DMap{S,T,I},
     comm::MPI.Comm;
@@ -327,8 +328,8 @@ function GatherMap_rest!(
 end
 
 """
-    MPI.Gather!(in_d_map::DMap{T, I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
-    MPI.Gather!(in_d_map::DMap{T, I}, out_map::Nothing, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
+    Gather!(in_d_map::DMap{T, I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
+    Gather!(in_d_map::DMap{T, I}, out_map::Nothing, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
 
     Gathers the `DMap` objects passed on each task overwriting the `HealpixMap`
     object passed in input on the `root` task according to the specified `strategy`
@@ -350,7 +351,7 @@ end
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
     - `clear::Bool`: if true deletes the input `DMap` after having performed the "scattering".
 """
-function MPI.Gather!(
+function Gather!(
     in_d_map::DMap{S,T,I},
     out_map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}};
     root::Integer = 0,
@@ -369,7 +370,7 @@ function MPI.Gather!(
 end
 
 #allows to pass nothing as output map on non-root tasks
-function MPI.Gather!(
+function Gather!(
     in_d_map::DMap{S,T,I},
     nothing;
     root::Integer = 0,
@@ -420,7 +421,7 @@ function AllgatherMap!(
 end
 
 """
-    MPI.Allgather!(in_d_map::DMap{S,T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
+    Allgather!(in_d_map::DMap{S,T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
 
     Gathers the `DMap` objects passed on each task overwriting the `out_map`
     object passed in input on EVERY task according to the specified `strategy`
@@ -437,7 +438,7 @@ end
     # Keywords:
     - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
-function MPI.Allgather!(
+function Allgather!(
     in_d_map::DMap{S,T,I},
     out_map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}};
     clear::Bool = false

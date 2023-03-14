@@ -31,9 +31,7 @@ The recommended way to construct a local subset of a map or harmonic coefficient
 Such function would in fact save the user the job of constructing all the required ancillary information describing the data subset, doing so through efficient and tested methods.
 
 ```@docs
-Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-Scatter!(in_alm::Nothing, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-Scatter!(in_alm, out_d_alm::DAlm{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+Scatter!
 ```
 
 While distributing a set of harmonic coefficients means that each MPI task will host a `DAlm` object containing only the coefficients corresponding to some specific values of m, the distribution of a map is performed by rings.

@@ -31,7 +31,7 @@ The recommended way to construct a local subset of a map or harmonic coefficient
 Such function would in fact save the user the job of constructing all the required ancillary information describing the data subset, doing so through efficient and tested methods.
 
 ```@docs
-Scatter!
+MPI.Scatter!
 ```
 
 While distributing a set of harmonic coefficients means that each MPI task will host a `DAlm` object containing only the coefficients corresponding to some specific values of m, the distribution of a map is performed by rings.

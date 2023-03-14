@@ -2,6 +2,9 @@ push!(LOAD_PATH,"../src/")
 
 using HealpixMPI
 using Documenter
+using MPI
+using LinearAlgebra
+using Healpix
 
 makedocs(
          sitename = "HealpixMPI.jl",

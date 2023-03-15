@@ -1,7 +1,6 @@
 using Test
 using MPI
 
-
 testdir = @__DIR__
 istest(f) = endswith(f, ".jl") && startswith(f, "test_")
 testfiles = sort(filter(istest, readdir(testdir)))

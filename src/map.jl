@@ -225,7 +225,7 @@ function Scatter!(
     ScatterMap!(in_map, out_d_map)
 
     if clear
-        in_map = nothing #free unnecessary copies of map
+        in_map = nothing #free unnecessary copies of map FIXME
     end
 end
 
@@ -243,7 +243,7 @@ function Scatter!(
     ScatterMap!(in_map, out_d_map)
 
     if clear
-        in_map = nothing #free unnecessary copies of map
+        in_map = nothing #free unnecessary copies of map FIXME
     end
 end
 

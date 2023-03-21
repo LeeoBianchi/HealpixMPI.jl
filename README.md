@@ -45,8 +45,8 @@ root = 0
 NSIDE = 64
 lmax = 3*NSIDE - 1
 if crank == root
-  h_map = HealpixMap{Float64, RingOrder}(NSIDE)
-  h_alm = Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax)))
+  h_map = HealpixMap{Float64, RingOrder}(NSIDE)   #empty map
+  h_alm = Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax)))  #random alm
 else
   h_map = nothing
   h_alm = nothing

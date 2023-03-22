@@ -14,17 +14,6 @@ In particular, its C++ functions are exploited for the computation of Legandre c
 The two SHTs are implemented as overloads of Healpix.jl's functions.
 
 ```@docs
-Healpix.alm2map!
-Healpix.adjoint_alm2map!
-```
-
-## Other Spherical Harmonic functionalities
-
-HealpixMPI.jl provides parallel versions, through overloads, of most of the other spherical-harmonic related functions of Healpix.jl.
-Refer to Healpix.jl [documentation](https://ziotom78.github.io/Healpix.jl/stable/) for their description.
-
-```@docs
-Healpix.alm2cl
-Healpix.synalm!
-Healpix.almxfl!
+alm2map!
+adjoint_alm2map!
 ```

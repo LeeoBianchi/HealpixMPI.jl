@@ -511,21 +511,23 @@ end
 
 import Base: +, -, *, /
 
+"""
+    +(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+
+Perform the element-wise SUM of two `DAlm` objects in a_ℓm space.
+A new `DAlm` object is returned.
+"""
 +(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
     DAlm{S,T,I}(alm₁.alm .+ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
+
+"""
+    -(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+
+Perform the element-wise SUBTRACTION of two `DAlm` objects in a_ℓm space.
+A new `DAlm` object is returned.
+"""
 -(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
     DAlm{S,T,I}(alm₁.alm .- alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
-*(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DAlm{S,T,I}(alm₁.alm .* alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
-/(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
-    DAlm{S,T,I}(alm₁.alm ./ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
-
-*(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
-    DAlm{S,T,I}(alm₁.alm .* c, alm₁.info)
-*(c::Number, alm₁::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = alm₁ * c
-/(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
-    DAlm{S,T,I}(alm₁.alm ./ c, alm₁.info)
-
 
 """
     almxfl!(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
@@ -575,19 +577,48 @@ function Healpix.almxfl(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number,
     alm_new
 end
 
-""" *(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+"""
+    *(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
     *(fl::AA, alm::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
 
-Perform the product of a `DAlm` object by a function of ℓ in a_ℓm space.
+Perform the MULTIPLICATION of a `DAlm` object by a function of ℓ in a_ℓm space.
 Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DAlm`
 object is returned.
 """
 *(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, fl)
 *(fl::AA, alm::DAlm{S,T,I}) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = alm*fl
 
-""" /(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+"""
+    *(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+    *(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer}
+    *(c::Number, alm₁::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
 
-    Perform an element-wise division by a function of ℓ in a_ℓm space.
-    A new `Alm` object is returned.
+Perform the element-wise MULTIPLICATION of two `DAlm` objects or of a `DAlm` by a constant in a_ℓm space.
+A new `DAlm` object is returned.
+"""
+*(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm .* alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
+*(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm .* c, alm₁.info)
+*(c::Number, alm₁::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} = alm₁ * c
+
+"""
+    /(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+
+Perform an element-wise DIVISION by a function of ℓ in a_ℓm space.
+Note: this consists in a shortcut of [`almxfl`](@ref), therefore a new `DAlm`
+object is returned.
 """
 /(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}} = Healpix.almxfl(alm, 1. ./ fl)
+
+"""
+    /(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+    /(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer}
+
+Perform the element-wise DIVISION of two `DAlm` objects or of a `DAlm` by a constant in a_ℓm space.
+A new `DAlm` object is returned.
+"""
+/(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm ./ alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
+/(alm₁::DAlm{S,T,I}, c::Number) where {S<:Strategy, T<:Number, I<:Integer} =
+    DAlm{S,T,I}(alm₁.alm ./ c, alm₁.info)

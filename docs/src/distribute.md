@@ -38,13 +38,7 @@ While distributing a set of harmonic coefficients means that each MPI task will 
 Each MPI task will then host a `DMap` object containing only the pixels composing some specified rings of the entire `HealpixMap`.
 Note that, for spherical harmonic transforms efficiency, it is recommended to assign pairs of rings with same latitude (i.e. symmetric w.r.t. the equator) to the same task, in order to preserve the geometric symmetry of the map.
 
-It is also worth mentioning that one could find many different strategies to distribute a set of data over multiple MPI tasks.
-So far, the only one implemented in HealpixMPI.jl, which should guarantee an adequate work balance between tasks, is the so-called "round robin" strategy: assuming $N$ MPI tasks, the map is distributed such that task $i$ hosts the map rings $i$, $i + N$, $i + 2N$, etc. (and their counterparts on the other hemisphere).
-Similarly, for the spherical harmonic coefficients, task $i$ would hold all coefficients for $m = i$, $i + N$, $i + 2 N$, etc.
-
-The strategy is intrinsically specified in a `DMap` or `DAlm` instance through an abstract type (e.g. `RR`), inherited from a super-type `Strategy`; in the same way as the pixel ordering is specified in a `HealpixMap` in Healpix.jl.
-
-The following example shows the standard way to initialize a `DAlm` object through a round robin strategy.
+The following example shows the standard way to initialize a `DAlm` object through a round robin strategy (see the paragraph [`Distributing Strategy`](@ref) for more details about this).
 
 ```julia
 using HealpixMPI
@@ -66,4 +60,22 @@ These latter allow to re-group subsets of map or alm into a `HealpixMap` or `Alm
 ```@docs
 MPI.Gather!
 MPI.Allgather!
+```
+
+## Distributing Strategy
+
+It is also worth mentioning that one could find many different strategies to distribute a set of data over multiple MPI tasks.
+So far, the only one implemented in HealpixMPI.jl, which should guarantee an adequate work balance between tasks, is the so-called "round robin" strategy: assuming $N$ MPI tasks, the map is distributed such that task $i$ hosts the map rings $i$, $i + N$, $i + 2N$, etc. (and their counterparts on the other hemisphere).
+Similarly, for the spherical harmonic coefficients, task $i$ would hold all coefficients for $m = i$, $i + N$, $i + 2 N$, etc.
+
+The strategy is intrinsically specified in a `DMap` or `DAlm` instance through an abstract type (e.g. `RR`), inherited from a super-type `Strategy`; in the same way as the pixel ordering is specified in a `HealpixMap` in Healpix.jl.
+
+This kind of solution allows for two great features:
+
+ - An efficient and fast multiple-dispatch, allowing a function to recognize the distribution strategy used on data structure without the usage of any `if` statement.
+
+ - Allows to add other distributing strategies if needed for future developments by simply adding an inherited type in the source file `strategy.jl` with a single line of code:
+
+```julia
+abstract type NewStrat<:Strategy end
 ```

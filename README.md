@@ -81,10 +81,10 @@ This allows the user to adjust at run time the number of threads to use, typical
 
 In order to exploit MPI parallelization run the code through `mpirun` or `mpiexec` as
 ````shell
-mpiexec -n {Ntask} julia {your_script.jl}
+$ mpiexec -n {Ntask} julia {your_script.jl}
 ````
 
 To run a code on multiple nodes, specify a machine file `machines.txt` as
 ````shell
-mpiexec -machinefile machines.txt julia {your_script.jl}
+$ mpiexec -machinefile machines.txt julia {your_script.jl}
 ````

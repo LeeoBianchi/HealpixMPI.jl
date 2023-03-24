@@ -32,3 +32,12 @@ HealpixMPI.jl implements overloads of Healpix.jl functions to compute a power sp
 alm2cl
 synalm!
 ```
+
+## Distributing auxiliary arrays
+
+It is often useful to make use of auxiliary arrays in pixel space, for which it is unnecessary to re-define a whole new map object, e.g., masks or noise covariance matrices.
+HealpixMPI.jl provides an overload of `MPI.Scatter` to distribute the corresponding chunks of such arrays on the correct task.
+
+```@docs
+Scatter
+```

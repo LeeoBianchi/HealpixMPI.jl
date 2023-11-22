@@ -35,47 +35,38 @@ of the most active research field of recent cosmology.
 As the resolution of the most recent observational experiments significantly increases, efficient 
 algorithms alone are no longer enough to perform SHTs in acceptable run times and a parallel approach must be implemented.
 Employing a high number of computing cores in the most efficient way in order to perform fast spherical harmonic transform
-operations is the main goal of the Julia package HealpixMPI.jl, presented in this paper.
+operations is the main goal of the Julia package `HealpixMPI.jl`, presented in this paper.
 
 
 # Statement of need
 
-The Julia package HealpixMPI.jl
-This package constitutes a natural extension of the package Healpix.jl, providing an MPI integration of its main functionalities, allowing for simultaneous shared-memory (multithreading) and distributed-memory (MPI) parallelization leading to high performance sperical harmonic transforms.
+The Julia package `HealpixMPI.jl` constitutes a natural extension of the package 
+`Healpix.jl` [TOCITE], providing an efficient parallelization of its sperical harmonic
+transform functionalities.
+Where `Healpix.jl`, in turn, constitutes a Julia-only implementation of the HEALPix [TOCITE]
+library, which provides one of the most used tasselation schemes of the two-sphere. 
+HEALPix is currently one of the most used libraries when performing numerical analysis of 
+the cosmic microwave background radiation.
+In fact, the code existing under the hood of `HealpixMPI.jl` was born as a contribution to this 
+same very specific research field. However, I have decided to publish it in the form 
+of a new Julia package as it can be useful for a variety of projects other than mine.
 
-The Julia package HealpixMPI.jl wraps part of the code I wrote while carrying out my master thesis project at the Institute for
-Theoretical Astrophysics of the University of Oslo. Even though my project was focused on
-the very specific research field of the Cosmic Microwave Background (CMB), I have decided
-to develop and publish this part of it in the form of a new Julia package, constituting an
-extension of Healpix.jl, as it provides a simultaneous shared- and distributed-memory
-parallelization of the main Spherical Harmonic Transforms (SHTs) functionalities which can
-be useful for a variety of projects other than mine. In fact, one of the main goals of my work
-was to allow my code to run efficiently on a high number of cores without multithreading’s
-machine-size limitations. The SHTs are the computationally heaviest step of the algorithm
-I implemented, where I had to concentrate the most of my efforts to obtain performance
-improvements. In the following chapters I will go through the main features provided by
-HealpixMPI.jl, as well as some brief usage examples and, eventually, the results of the
-parallel benchmark tests I have carried out.
+As mentioned before, an efficient parallel implementation of the spherical harmonic 
+transforms is crucial in the CMB research field for obtaining feasible run times 
+when dealing with the most recent astrophyisical observational experiments which 
+provide increasingly high resolution.
+`HealpixMPI.jl` tackles the problem by providing a hybrid parallelization of the 
+computationally heaviest functionalities of `Healpix.jl`, through a simultaneous 
+shared-memory (multithreading) and distributed-memory (MPI) parallel implementation.
 
-`Gala` is an Astropy-affiliated Python package for galactic dynamics. Python
-enables wrapping low-level languages (e.g., C) for speed without losing
-flexibility or ease-of-use in the user-interface. The API for `Gala` was
-designed to provide a class-based and user-friendly interface to fast (C or
-Cython-optimized) implementations of common operations such as gravitational
-potential and force evaluation, orbit integration, dynamical transformations,
-and chaos indicators for nonlinear dynamics. `Gala` also relies heavily on and
-interfaces well with the implementations of physical units and astronomical
-coordinate systems in the `Astropy` package [@astropy] (`astropy.units` and
-`astropy.coordinates`).
+# Main Features
 
-`Gala` was designed to be used by both astronomical researchers and by
-students in courses on gravitational dynamics or astronomy. It has already been
-used in a number of scientific publications [@Pearson:2017] and has also been
-used in graduate courses on Galactic dynamics to, e.g., provide interactive
-visualizations of textbook material [@Binney:2008]. The combination of speed,
-design, and support for Astropy functionality in `Gala` will enable exciting
-scientific explorations of forthcoming data releases from the *Gaia* mission
-[@gaia] by students and experts alike.
+## The latest SHT engine: DUCC
+
+## Hybrid parallelization of the SHT
+
+## Multi-platform support
+
 
 # Mathematics
 

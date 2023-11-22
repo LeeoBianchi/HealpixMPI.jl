@@ -23,6 +23,26 @@ bibliography: paper.bib
 
 # Summary
 
+The spherical harmonic transforms, or SHTs for short, are a family of mathematical operators 
+which often constitute the computationally heaviest step of scientific software in a variety of fields.
+For this reason, many efforts has been spent over the last decades to obtain the fastest and most efficient 
+possible SHTs implementations.
+In brief, a spherical harmonic transform can be seen as sort of two-dimensional Fourier transform defined on
+the sphere, which can be used for decomposing a spherically-symmetric field such as the temperature
+of the sky measured in a specific frequency range.
+For this reason, SHTs are a crucial tool for the analysis of cosmic microwave background (CMB), which is one 
+of the most active research field of recent cosmology. 
+As the resolution of the most recent observational experiments significantly increases, efficient 
+algorithms alone are no longer enough to perform SHTs in acceptable run times and a parallel approach must be implemented.
+Employing a high number of computing cores in the most efficient way in order to perform fast spherical harmonic transform
+operations is the main goal of the Julia package HealpixMPI.jl, presented in this paper.
+
+
+# Statement of need
+
+The Julia package HealpixMPI.jl
+This package constitutes a natural extension of the package Healpix.jl, providing an MPI integration of its main functionalities, allowing for simultaneous shared-memory (multithreading) and distributed-memory (MPI) parallelization leading to high performance sperical harmonic transforms.
+
 The Julia package HealpixMPI.jl wraps part of the code I wrote while carrying out my master thesis project at the Institute for
 Theoretical Astrophysics of the University of Oslo. Even though my project was focused on
 the very specific research field of the Cosmic Microwave Background (CMB), I have decided
@@ -36,14 +56,6 @@ I implemented, where I had to concentrate the most of my efforts to obtain perfo
 improvements. In the following chapters I will go through the main features provided by
 HealpixMPI.jl, as well as some brief usage examples and, eventually, the results of the
 parallel benchmark tests I have carried out.
-
-The spherical harmonic transforms, or SHTs, for short, are a family of mathematical operators 
-which often constitute the computationally heaviest step of scientific softwares in a variety of fields.
-In particular, this is exactly the case of data analysis pipelines for experiments related to the 
-cosmic microwave background (CMB, for short), which is one of the most active research field of recent cosmology. 
-For this reason, many efforts has been spent over the last decades to obtain the fastest and most efficient implementations 
-
-# Statement of need
 
 `Gala` is an Astropy-affiliated Python package for galactic dynamics. Python
 enables wrapping low-level languages (e.g., C) for speed without losing

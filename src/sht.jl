@@ -96,6 +96,10 @@ function alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}; nthreads::Integer = 0)
     Healpix.alm2map!(d_alm, d_map, aux_in_leg, aux_out_leg; nthreads = nthreads)
 end
 
+function alm2map!(d_alms::Vector{DAlm{S,N,I}}, d_pol_map::Vector{DMap{S,T,I}}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+
+end
+
 ##################################################################################################
 #MAP2ALM direction
 
@@ -127,13 +131,14 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
         end
     #2) communicate
         #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
-        MPI.Alltoallv!(MPI.VBuffer(send_array, send_counts), MPI.VBuffer(out_leg[:,:,comp], rec_counts), comm)
+        MPI.Alltoallv!(MPI.VBuffer(send_array, send_counts), MPI.VBuffer(view(out_leg,:,:,comp), rec_counts), comm)
     end
 end
 
 """
     adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    adjoint_alm2map!(d_pol_map::Vector{DMap{S,T,I}}, d_alms::Vector{DAlm{S,N,I}}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
 
 This function performs an MPI-parallel spherical harmonic transform Yᵀ on the distributed map and places the results
 in the passed `d_alm` object.
@@ -167,7 +172,7 @@ function adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}, aux_in_leg::St
     if MPI.Comm_size(comm) == 1
         aux_out_leg = aux_in_leg #we avoid useless communication on 1-task case
     else
-        communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S) #additional output for reordering thetatot
+        communicate_map2alm!(aux_in_leg, aux_out_leg, comm, S)
     end
     #then we use them to get the alm
     Ducc0.Sht.leg2alm!(aux_out_leg, reshape(d_alm.alm, :, 1), 0, d_alm.info.lmax, Csize_t.(d_alm.info.mval), Cptrdiff_t.(d_alm.info.mstart), 1, d_map.info.thetatot, nthreads)
@@ -177,4 +182,8 @@ function adjoint_alm2map!(d_map::DMap{S,T,I}, d_alm::DAlm{S,N,I}; nthreads::Inte
     aux_in_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1)               # tot_nm * loc_nr
     aux_out_leg = Array{ComplexF64,3}(undef, (length(d_alm.info.mval), Healpix.numOfRings(d_map.info.nside), 1))  # loc_nm * tot_nr
     Healpix.adjoint_alm2map!(d_map, d_alm, aux_in_leg, aux_out_leg; nthreads = nthreads)
+end
+
+function adjoint_alm2map!(d_pol_map::Vector{DMap{S,T,I}}, d_alms::Vector{DAlm{S,N,I}}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+
 end

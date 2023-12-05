@@ -4,8 +4,9 @@ import Healpix: alm2map!, adjoint_alm2map!
 #round robin a2m communication
 function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
     c_size = MPI.Comm_size(comm)
-    tot_nm, loc_nr = size(out_leg) #global nm, local n rings
-    loc_nm, tot_nr = size(in_leg)  #local nm, global n rings,
+    tot_nm, loc_nr, ncomp_out = size(out_leg) #global nm, local n rings
+    loc_nm, tot_nr, ncomp_in = size(in_leg)  #local nm, global n rings,
+    ncomp = (ncomp_in == ncomp_out) ? ncomp_in : throw(DomainError(0, "ncomp's of leg coefficinets must match"))
     eq_index = (tot_nr + 1) ÷ 2
     nside = eq_index ÷ 2
     tot_mmax = tot_nm-1
@@ -13,28 +14,30 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     #1) we compute the send and receive counts
     send_counts = Vector{Int64}(undef, c_size)
     rec_counts = Vector{Int64}(undef, c_size)
-    cumrecs = Vector{Int64}(undef, c_size) #sort of cumulative sum corrected for the 1-base of the received counts, needed when unpacking
-    cumrec = 1
-    for t_rank in 0:c_size-1
-        send_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size)
-        send_counts[t_rank+1] = send_count
-        rec_count = loc_nr * get_nm_RR(tot_mmax, t_rank, c_size) #local nrings x local nm on task t_rank
-        rec_counts[t_rank+1] = rec_count
-        cumrecs[t_rank+1] = cumrec
-        cumrec += rec_count
-    end
-    #2) communicate
-    #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
     rec_array = Vector{ComplexF64}(undef, tot_nm*loc_nr)
-    MPI.Alltoallv!(MPI.VBuffer(in_leg, send_counts), MPI.VBuffer(rec_array, rec_counts), comm) #send_arr gets changed in place
-    #3) unpack what we have received and fill out_leg
-    ndone = zeros(Int, c_size) #keeps track of the processed elements coming from each task
-    for ri in 1:loc_nr #local nrings
-        @inbounds for mi in 1:tot_nm #tot nm
-            send_idx = rem(mi-1, c_size) + 1 #1-based index of task who sent coefficients corresponding to that m
-            idx = cumrecs[send_idx] + ndone[send_idx]
-            ndone[send_idx] += 1
-            out_leg[mi, ri, 1] = rec_array[idx]
+    cumrecs = Vector{Int64}(undef, c_size) #sort of cumulative sum corrected for the 1-base of the received counts, needed when unpacking
+    for comp in 1:ncomp #cycle over the components of the leg (=1 if spin=0, =2 if spin=2)
+        cumrec = 1
+        for t_rank in 0:c_size-1
+            send_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size)
+            send_counts[t_rank+1] = send_count
+            rec_count = loc_nr * get_nm_RR(tot_mmax, t_rank, c_size) #local nrings x local nm on task t_rank
+            rec_counts[t_rank+1] = rec_count
+            cumrecs[t_rank+1] = cumrec
+            cumrec += rec_count
+        end
+        #2) communicate
+        #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
+        MPI.Alltoallv!(MPI.VBuffer(in_leg[:,:,comp], send_counts), MPI.VBuffer(rec_array, rec_counts), comm) #send_arr gets changed in place
+        #3) unpack what we have received and fill out_leg
+        ndone = zeros(Int, c_size) #keeps track of the processed elements coming from each task
+        for ri in 1:loc_nr #local nrings
+            @inbounds for mi in 1:tot_nm #tot nm
+                send_idx = rem(mi-1, c_size) + 1 #1-based index of task who sent coefficients corresponding to that m
+                idx = cumrecs[send_idx] + ndone[send_idx]
+                ndone[send_idx] += 1
+                out_leg[mi, ri, comp] = rec_array[idx]
+            end
         end
     end
 end
@@ -99,8 +102,9 @@ end
 #round robin adj communication
 function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::StridedArray{Complex{T},3}, comm::MPI.Comm, RR) where {T<:Real}
     c_size = MPI.Comm_size(comm)
-    tot_nm, loc_nr = size(in_leg) #global nm, local n rings
-    loc_nm, tot_nr = size(out_leg)   #local nm, global n rings
+    tot_nm, loc_nr, ncomp_in = size(in_leg) #global nm, local n rings
+    loc_nm, tot_nr, ncomp_out = size(out_leg)   #local nm, global n rings
+    ncomp = (ncomp_in == ncomp_out) ? ncomp_in : throw(DomainError(0, "ncomp's of leg coefficinets must match"))
     eq_index = (tot_nr + 1) ÷ 2
     tot_mmax = tot_nm-1
 
@@ -108,22 +112,23 @@ function communicate_map2alm!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     send_array = Vector{ComplexF64}(undef, tot_nm*loc_nr)
     send_counts = Vector{Int64}(undef, c_size)
     rec_counts = Vector{Int64}(undef, c_size)
-    filled_leg = 1 #we keep track of how much of send_array we already have filled
-    for t_rank in 0:c_size-1
-        mindexes = get_mval_RR(tot_mmax, t_rank, c_size) .+ 1
-        send_count = length(mindexes)*loc_nr
-        send_matr = @view in_leg[mindexes, :, 1]  #chunk of leg to send to t_rank
-        send_arr = @view send_array[filled_leg:filled_leg+send_count-1] #chunk of send_array to send to t_rank
-        copyto!(send_arr, send_matr) #in-place version of reduce(vcat,...)
-        send_counts[t_rank+1] = send_count
-        rec_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size) #nrings on task t_rank
-        rec_counts[t_rank+1] = rec_count
-        filled_leg += send_count
-    end
-
+    for comp in 1:ncomp  #cycle over the components of the leg (=1 if spin=0, =2 if spin=2)
+        filled_leg = 1 #we keep track of how much of send_array we already have filled
+        for t_rank in 0:c_size-1
+            mindexes = get_mval_RR(tot_mmax, t_rank, c_size) .+ 1
+            send_count = length(mindexes)*loc_nr
+            send_matr = @view in_leg[mindexes, :, comp]  #chunk of leg to send to t_rank
+            send_arr = @view send_array[filled_leg:filled_leg+send_count-1] #chunk of send_array to send to t_rank
+            copyto!(send_arr, send_matr) #in-place version of reduce(vcat,...)
+            send_counts[t_rank+1] = send_count
+            rec_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size) #nrings on task t_rank
+            rec_counts[t_rank+1] = rec_count
+            filled_leg += send_count
+        end
     #2) communicate
-    #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
-    MPI.Alltoallv!(MPI.VBuffer(send_array, send_counts), MPI.VBuffer(out_leg, rec_counts), comm)
+        #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
+        MPI.Alltoallv!(MPI.VBuffer(send_array, send_counts), MPI.VBuffer(out_leg[:,:,comp], rec_counts), comm)
+    end
 end
 
 """

@@ -16,19 +16,20 @@ function communicate_alm2map!(in_leg::StridedArray{Complex{T},3}, out_leg::Strid
     rec_counts = Vector{Int64}(undef, c_size)
     rec_array = Vector{ComplexF64}(undef, tot_nm*loc_nr)
     cumrecs = Vector{Int64}(undef, c_size) #sort of cumulative sum corrected for the 1-base of the received counts, needed when unpacking
-    for comp in 1:ncomp #cycle over the components of the leg (=1 if spin=0, =2 if spin=2)
-        cumrec = 1
-        for t_rank in 0:c_size-1
-            send_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size)
-            send_counts[t_rank+1] = send_count
-            rec_count = loc_nr * get_nm_RR(tot_mmax, t_rank, c_size) #local nrings x local nm on task t_rank
-            rec_counts[t_rank+1] = rec_count
-            cumrecs[t_rank+1] = cumrec
-            cumrec += rec_count
-        end
+    cumrec = 1
+    for t_rank in 0:c_size-1
+        send_count = loc_nm * get_nrings_RR(eq_index, t_rank, c_size)
+        send_counts[t_rank+1] = send_count
+        rec_count = loc_nr * get_nm_RR(tot_mmax, t_rank, c_size) #local nrings x local nm on task t_rank
+        rec_counts[t_rank+1] = rec_count
+        cumrecs[t_rank+1] = cumrec
+        cumrec += rec_count
+    end
+    
+    for comp in 1:ncomp #cycle over the components of the leg (=1 if spin=0, =3 if spin=2 (TEB))
         #2) communicate
         #println("on task $(MPI.Comm_rank(comm)), we send $send_counts and receive $rec_counts coefficients")
-        MPI.Alltoallv!(MPI.VBuffer(in_leg[:,:,comp], send_counts), MPI.VBuffer(rec_array, rec_counts), comm) #send_arr gets changed in place
+        MPI.Alltoallv!(MPI.VBuffer(view(in_leg,:,:,comp), send_counts), MPI.VBuffer(rec_array, rec_counts), comm) #send_arr gets changed in place
         #3) unpack what we have received and fill out_leg
         ndone = zeros(Int, c_size) #keeps track of the processed elements coming from each task
         for ri in 1:loc_nr #local nrings
@@ -46,6 +47,8 @@ end
 """
     alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    alm2map!(d_alms::Vector{DAlm{S,N,I}}, d_pol_map::Vector{DMap{S,T,I}}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    alm2map!(d_alms::Vector{DAlm{S,N,I}}, d_pol_map::Vector{DMap{S,T,I}}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
 
 This function performs an MPI-parallel spherical harmonic transform, computing a distributed map from a set of `DAlm` and places the results
 in the passed `d_map` object.
@@ -74,7 +77,7 @@ It is possible to pass two auxiliary arrays where the Legandre coefficients will
 function alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
     comm = (d_alm.info.comm == d_map.info.comm) ? d_alm.info.comm : throw(DomainError(0, "Communicators must match"))
     #we first compute the leg's for local m's and all the rings (orderd fron N->S)
-    in_alm=reshape(d_alm.alm, length(d_alm.alm), 1)
+    in_alm = reshape(d_alm.alm, length(d_alm.alm), 1)
     cmval = Csize_t.(d_alm.info.mval)
     cmstart = Cptrdiff_t.(d_alm.info.mstart)
     lmax = d_alm.info.lmax
@@ -91,13 +94,15 @@ function alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}, aux_in_leg::StridedArr
 end
 
 function alm2map!(d_alm::DAlm{S,N,I}, d_map::DMap{S,T,I}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
-    aux_in_leg = Array{ComplexF64,3}(undef, (length(d_alm.info.mval), Healpix.numOfRings(d_map.info.nside), 1)) # loc_nm * tot_nr
-    aux_out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1)            # tot_nm * loc_nr
+    aux_in_leg = Array{ComplexF64,3}(undef, (length(d_alm.info.mval), Healpix.numOfRings(d_map.info.nside), 1)) # loc_nm * tot_nr * 1
+    aux_out_leg = Array{ComplexF64,3}(undef, d_alm.info.mmax+1, length(d_map.info.rings), 1)        # tot_nm * loc_nr * 1 #Check if Array{Array{T,2},1} could be faster
     Healpix.alm2map!(d_alm, d_map, aux_in_leg, aux_out_leg; nthreads = nthreads)
 end
 
-function alm2map!(d_alms::Vector{DAlm{S,N,I}}, d_pol_map::Vector{DMap{S,T,I}}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
-
+function alm2map!(d_alms::Vector{DAlm{S,N,I}}, d_pol_map::Vector{DMap{S,T,I}}, aux_in_leg::StridedArray{Complex{T},3}, aux_out_leg::StridedArray{Complex{T},3}; nthreads::Integer = 0) where {S<:Strategy, N<:Number, T<:Real, I<:Integer}
+    #rifaccio tutto con solo una comunicazione? Chiamando poi alm2leg prima con spin=0 e poi spin=2
+    #Faccio una volta sola la comunincazione
+    #Come gestisco gli aux_leg?? Posso crearne solo 1 da dim = (r, m, 3) e poi passo 2 views a alm2leg? Temo di no... 
 end
 
 ##################################################################################################

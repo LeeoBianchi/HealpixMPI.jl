@@ -16,7 +16,7 @@ Both [`alm2map!`](@ref) and [`adjoint_alm2map!`](@ref) are implemented as overlo
 
 ### From Alm to Map: synthesis operator
 
-The synthesis SHT ([`alm2map`](@ref)) is used to compute a map from a set of $a_{\ell m}$ coefficients.
+The synthesis SHT ([`alm2map!`](@ref)) is used to compute a map from a set of $a_{\ell m}$ coefficients.
 It is generally represented by the matrix operator $\mathrm{Y}$ which is defined through an exact summation as $$f(\theta, \phi) = \mathrm{Y} \, a_{\ell m} \quad \text{where} \quad f(\theta, \phi) = \sum_{\ell=0}^{\infty} \sum_{m=-\ell}^{\ell} a_{\ell m} Y_{\ell m} (\theta, \phi).$$
 
 ```@docs

@@ -39,5 +39,5 @@ It is often useful to make use of auxiliary arrays in pixel space, for which it 
 HealpixMPI.jl provides an overload of `MPI.Scatter` to distribute the corresponding chunks of such arrays on the correct task.
 
 ```@docs
-Scatter
+MPI.Scatter
 ```

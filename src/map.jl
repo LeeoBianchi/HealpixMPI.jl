@@ -1,6 +1,6 @@
 
 """
-	struct GeomInfoMPI{I <: Integer, T <: Real}
+    struct GeomInfoMPI{T<:Real, I<:Integer}
 
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DMap`.
 
@@ -46,7 +46,7 @@ GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T
 GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
 
 """
-    struct DMap{T<:Number, I<:Integer}
+    struct DMap{S<:Strategy, T<:Real, I<:Integer}
 
 A subset of a Healpix map, containing only certain rings (as specified in the `info` field).
 The type `T` is used for the value of the pixels in a map, it must be a `Number` (usually float).
@@ -80,7 +80,8 @@ DMap{S,T,I}() where {S<:Strategy, T<:Real, I<:Integer} = DMap{S,T,I}(Vector{T}(u
 DMap{S}() where {S<:Strategy} = DMap{S, Float64, Int64}()
 
 
-""" get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
+""" 
+    get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
     get_nrings_RR(res::Resolution, task_rank::Integer, c_size::Integer)
 
 Return number of rings on specified task given total map resolution
@@ -92,7 +93,8 @@ function get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)::In
 end
 get_nrings_RR(res::Healpix.Resolution, task_rank::Integer, c_size::Integer)::Integer = get_nrings_RR(Healpix.getEquatorIdx(res.nside), task_rank, c_size)
 
-""" get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
+""" 
+    get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer, c_size::Integer)
     get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)
 
 Return array of rings on specified task (0-base index) given total map resolution
@@ -114,7 +116,8 @@ function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)::Vect
     get_rindexes_RR(nrings, eq_idx, t_rank, c_size)
 end
 
-""" get_rindexes_tot_RR(eq_idx::Integer, c_size::Integer)
+""" 
+    get_rindexes_tot_RR(eq_idx::Integer, c_size::Integer)
 
 Return array of ring indexes ordered by task first and RR within each task
 """
@@ -188,8 +191,9 @@ end
 import MPI: Scatter!, Gather!, Allgather!
 
 """
-    Scatter!(in_map::HealpixMap{T,RingOrder,Array{T,1}}, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
-    Scatter!(nothing, out_d_map::DMap{S,T,I}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T <: Number, I <: Integer}
+    Scatter!(in_map::Healpix.HealpixMap{T1,Healpix.RingOrder,Array{T1,1}}, out_d_map::DMap{S,T2,I}; root::Integer = 0, clear::Bool = false) where {T1<:Real, T2<:Real, I<:Integer, S<:Strategy}
+    Scatter!(nothing, out_d_map::DMap{S,T,I}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
+    Scatter!(in_map, out_d_map::DMap{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
 
 Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
 `DMap` objects passed on each task, according to the specified strategy
@@ -329,8 +333,8 @@ function GatherMap_rest!(
 end
 
 """
-    Gather!(in_d_map::DMap{T, I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
-    Gather!(in_d_map::DMap{T, I}, out_map::Nothing, strategy::Symbol, comm::MPI.Comm; root::Integer = 0, clear::Bool = false)
+    Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
+    Gather!(in_d_map::DMap{S,T,I}, nothing; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
 
 Gathers the `DMap` objects passed on each task overwriting the `HealpixMap`
 object passed in input on the `root` task according to the specified `strategy`
@@ -422,7 +426,7 @@ function AllgatherMap!(
 end
 
 """
-    Allgather!(in_d_map::DMap{S,T,I}, out_map::HealpixMap{T,RingOrder,Array{T,1}}, strategy::Symbol, comm::MPI.Comm; clear::Bool = false) where {T <: Number}
+    Allgather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder,Array{T,1}}; clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
 
 Gathers the `DMap` objects passed on each task overwriting the `out_map`
 object passed in input on EVERY task according to the specified `strategy`

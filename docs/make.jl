@@ -13,7 +13,7 @@ makedocs(
                 "Introduction" => "index.md"
                 "Distributed Classes" => "distribute.md"
                 "Spherical Harmonics" => "sht.md"
-                "Miscellanea" => "misc.md"
+                #"Miscellanea" => "misc.md"
                ])
 
 deploydocs(

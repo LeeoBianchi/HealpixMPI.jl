@@ -91,7 +91,8 @@ DAlm{S}() where {S<:Strategy} = DAlm{S, ComplexF64, Int64}()
 
 # MPI Overloads:
 ## SCATTER
-""" get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
+""" 
+    get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
 
 Return number of m's on specified task in a Round Robin strategy
 """
@@ -100,7 +101,8 @@ function get_nm_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)::I
     (global_mmax + c_size - task_rank) ÷ c_size # =nm
 end
 
-""" get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
+""" 
+    get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer)
 
 Return array of m values on specified task in a Round Robin strategy
 """
@@ -113,7 +115,8 @@ function get_mval_RR(global_mmax::Integer, task_rank::Integer, c_size::Integer):
     mval
 end
 
-""" get_m_tasks_RR(mmax::Integer, c_size::Integer)
+""" 
+	get_m_tasks_RR(mmax::Integer, c_size::Integer)
 
 Computes an array containing the task each m in the full range [0, `mmax`]
 is assigned to according to a Round Robin strategy, given the communicator size.
@@ -126,7 +129,8 @@ function get_m_tasks_RR(mmax::Integer, c_size::Integer)::Vector{Int}
     res
 end
 
-""" make_mstart_complex(lmax::Integer, stride::Integer, mval::AbstractArray{T}) where T <: Integer
+""" 
+	make_mstart_complex(lmax::Integer, stride::Integer, mval::AbstractArray{T}) where T <: Integer
 
 Computes the 1-based `mstart` array given any `mval` and `lmax` for `Alm` in complex
 representation.
@@ -144,7 +148,7 @@ function make_mstart_complex(lmax::Integer, stride::Integer, mval::AbstractArray
 end
 
 """
-    Internal function implementing a "Round Robin" strategy.
+	Internal function implementing a "Round Robin" strategy.
 
 Here the input alms are supposed to be on every task as a copy.
 The input Alm object is broadcasted by `MPI.Scatter!`.
@@ -449,7 +453,7 @@ end
 
 #########################################################################
 """
-    ≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+	≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
 
 Similarity operator, returns `true` if the two arguments have matching `info` objects.
 """
@@ -530,7 +534,7 @@ A new `DAlm` object is returned.
     DAlm{S,T,I}(alm₁.alm .- alm₂.alm, alm₁ ≃ alm₂ ? alm₁.info : throw(DomainError(0,"info not matching")))
 
 """
-    almxfl!(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+    almxfl!(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
 
 Multiply IN-PLACE a subset of a_ℓm in the form of `DAlm` by a vector `fl`
 representing an ℓ-dependent function.
@@ -559,7 +563,7 @@ function Healpix.almxfl!(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number
 end
 
 """
-    almxfl(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, I<:Integer, AA<:AbstractArray{T,1}}
+    almxfl(alm::DAlm{S,T,I}, fl::AA) where {S<:Strategy, T<:Number, N<:Number, I<:Integer, AA<:AbstractArray{N,1}}
 
 Multiply a subset of a_ℓm in the form of `DAlm` by a vector b_ℓ representing
 an ℓ-dependent function, without changing the a_ℓm passed in input.

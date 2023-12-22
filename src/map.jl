@@ -234,7 +234,7 @@ If the keyword `clear` is set to `true` it frees the memory of each task from th
 - `clear::Bool`: if true deletes the input map after having performed the "scattering".
 """
 function Scatter!(
-    in_map::Union{Healpix.HealpixMap{T1, Healpix.RingOrder}, Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder}}
+    in_map::Union{Healpix.HealpixMap{T1, Healpix.RingOrder}, Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder}},
     out_d_map::DMap{S,T2,I};
     root::Integer = 0,
     clear::Bool = false

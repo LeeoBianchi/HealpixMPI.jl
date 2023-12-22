@@ -198,7 +198,7 @@ function ScatterMap!(
     ScatterMap!(polmap.i, d_map) #first call the scalar function to build the info in d_map
     col = 2
     for map in [polmap.q, polmap.u] #then we add the other maps
-        d_map.pixels = cat(d_map.pixels, Array{T}(undef, length(d_map.pixels), 1), dims = 2) #2 extra columns for q & u maps
+        d_map.pixels = cat(d_map.pixels, Array{T}(undef, length(d_map.pixels), 1), dims = 2) #extra columns for q & u maps
         done = 0
         @inbounds for ring in d_map.info.rstart
             new_pixels = Healpix.getRingPixels(map, ringinfo)

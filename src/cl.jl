@@ -5,8 +5,8 @@
 function alm2cl_local(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number, I<:Integer}
     (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
 
-    comp₁ = min(shape(alm₁.alm, 2), comp₁)
-    comp₂ = min(shape(alm₂.alm, 2), comp₂)
+    comp₁ = (size(alm₁.alm, 2) >= comp₁) ? comp₁ : throw(DomainError(4, "not enough components in alm_1"))
+    comp₂ = (size(alm₂.alm, 2) >= comp₂) ? comp₂ : throw(DomainError(4, "not enough components in alm_2"))
 
     lmax = alm₁.info.lmax
     cl = zeros(Float64, lmax + 1)
@@ -45,8 +45,9 @@ import Random
     synalm!(cl::Vector{T}, alm::DAlm{S,N,I}; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
 
 Generate a set of `DAlm` from a given power spectra array `cl`.
-The output is written into the (optional) `comp` column (defaulted to 1)
-of the `Alm` object passed in input.
+The output is written into the `comp` column (defaulted to 1)
+of the `Alm` object passed in input. If `comp` is greater than the number of
+components (columns) in `Alm` a new column is appended to the alm matrix.
 An RNG can be specified, otherwise it's defaulted to `Random.GLOBAL_RNG`.
 """
 function Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N,I}, rng::Random.AbstractRNG; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
@@ -54,7 +55,10 @@ function Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N,I}, rng::Random.AbstractRN
     lmax = alm.info.lmax
     mval = alm.info.mval
     (cl_size - 1 >= lmax) || throw(DomainError(cl_size, "not enough C_l's to generate Alm"))
-    comp = min(shape(alm.alm, 2), comp)
+    if comp > size(alm.alm, 2)      #if the desired comp is out of bounds
+        cat(alm.alm, Array{T}(undef, length(alm.alm), 1), dims = 2)
+        comp = size(alm.alm, 2) + 1 #we append a column next to the last one
+    end
     i = 1
     for m in mval
         for l = m:lmax

@@ -492,8 +492,8 @@ function localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer = 1
     lmax = (alm₁.info.lmax == alm₂.info.lmax) ? alm₁.info.lmax : throw(DomainError(1, "lmax must match"))
     mval = (alm₁.info.mval == alm₂.info.mval) ? alm₁.info.mval : throw(DomainError(2, "mval must match"))
     mstart = (alm₁.info.mstart == alm₂.info.mstart) ? alm₁.info.mstart : throw(DomainError(3, "mstarts must match"))
-    comp₁ = min(shape(alm₁.alm, 2), comp₁)
-    comp₂ = min(shape(alm₂.alm, 2), comp₂)
+    comp₁ = (size(alm₁.alm, 2) >= comp₁) ? comp₁ : throw(DomainError(4, "not enough components in alm_1"))
+    comp₂ = (size(alm₂.alm, 2) >= comp₂) ? comp₂ : throw(DomainError(4, "not enough components in alm_2"))
     nm = length(mval)
     res_m0 = 0
     res_rest = 0

@@ -14,8 +14,8 @@ as well as `LinearAlgebra.dot` (which embeds and `MPI.Allreduce` call), allowing
 element-wise in harmonic space directly.
 
 ```@docs
-almxfl
-almxfl!
+Healpix.almxfl
+Healpix.almxfl!
 Base.:+
 Base.:-
 Base.:*

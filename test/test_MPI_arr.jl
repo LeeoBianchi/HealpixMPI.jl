@@ -28,4 +28,4 @@ d_map = DMap{RR}()
 MPI.Scatter!(test_map, d_map, comm)
 local_arr = MPI.Scatter(test_arr, nside, comm)
 
-Test.@test local_arr == d_map.pixels
+Test.@test reshape(local_arr, :, 1) == d_map.pixels

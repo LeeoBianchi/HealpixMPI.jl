@@ -213,7 +213,7 @@ If the keyword `clear` is set to `true` it frees the memory of each task from th
 - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function Scatter!(
-    in_alm::Healpix.Alm{T,Array{T,1}},
+    in_alm::Union{Healpix.Alm{T,Array{T,1}}, Vector{Healpix.Alm{T,Array{T,1}}}},
     out_d_alm::DAlm{S,T,I};
     root::Integer = 0,
     clear::Bool = false
@@ -235,7 +235,7 @@ end
 
 #non root node
 function Scatter!(
-    nothing,
+    in_alm::Nothing,
     out_d_alm::DAlm{S,T,I};
     root::Integer = 0,
     clear::Bool = false
@@ -378,7 +378,7 @@ end
 #allows non-root tasks to pass nothing as output
 function Gather!(
     in_d_alm::DAlm{S,T,I},
-    nothing;
+    out_alm::Nothing;
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
@@ -492,8 +492,8 @@ function localdot(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer = 1
     lmax = (alm₁.info.lmax == alm₂.info.lmax) ? alm₁.info.lmax : throw(DomainError(1, "lmax must match"))
     mval = (alm₁.info.mval == alm₂.info.mval) ? alm₁.info.mval : throw(DomainError(2, "mval must match"))
     mstart = (alm₁.info.mstart == alm₂.info.mstart) ? alm₁.info.mstart : throw(DomainError(3, "mstarts must match"))
-    comp₁ = (size(alm₁.alm, 2) >= comp₁) ? comp₁ : throw(DomainError(4, "not enough components in alm_1"))
-    comp₂ = (size(alm₂.alm, 2) >= comp₂) ? comp₂ : throw(DomainError(4, "not enough components in alm_2"))
+    (size(alm₁.alm, 2) >= comp₁) || throw(DomainError(4, "not enough components in alm_1"))
+    (size(alm₂.alm, 2) >= comp₂) || throw(DomainError(4, "not enough components in alm_2"))
     nm = length(mval)
     res_m0 = 0
     res_rest = 0

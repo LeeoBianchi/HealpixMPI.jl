@@ -38,7 +38,7 @@ While distributing a set of harmonic coefficients means that each MPI task will 
 Each MPI task will then host a `DMap` object containing only the pixels composing some specified rings of the entire `HealpixMap`.
 Note that, for spherical harmonic transforms efficiency, it is recommended to assign pairs of rings with same latitude (i.e. symmetric w.r.t. the equator) to the same task, in order to preserve the geometric symmetry of the map.
 
-The following example shows the standard way to initialize a `DAlm` object through a round robin strategy (see the paragraph [`Distributing Strategy`](https://leeobianchi.github.io/HealpixMPI.jl/dev/distribute/#Distributing-Strategy) for more details about this).
+The following example shows the standard way to initialize a `DAlm` object through a round robin strategy (see the paragraph `Distributing Strategy` for more details about this). #[`Distributing Strategy`](https://leeobianchi.github.io/HealpixMPI.jl/dev/distribute/#Distributing-Strategy)
 
 ```julia
 using HealpixMPI

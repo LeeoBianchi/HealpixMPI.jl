@@ -191,21 +191,21 @@ function ScatterMap!(
 end
 
 function ScatterMap!(
-    polmap::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder,Array{T,1}},
+    polmap::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder},
     d_map::DMap{RR,T,I} #Round Robin, can add more as overloads
     ) where {T <: Real, I <: Integer}
 
     ScatterMap!(polmap.i, d_map) #first call the scalar function to build the info in d_map
-    col = 2
+    comp = 2
     for map in [polmap.q, polmap.u] #then we add the other maps
         d_map.pixels = cat(d_map.pixels, Array{T}(undef, length(d_map.pixels), 1), dims = 2) #extra columns for q & u maps
         done = 0
         @inbounds for ring in d_map.info.rstart
             new_pixels = Healpix.getRingPixels(map, ringinfo)
-            @views d_map.pixels[done+1:done+length(new_pixels), col] = new_pixels
+            @views d_map.pixels[done+1:done+length(new_pixels), comp] = new_pixels
             done += length(new_pixels)
         end
-        col += 1
+        comp += 1
     end
 end
 
@@ -295,7 +295,7 @@ function GatherMap!(
     comp::Integer
     ) where {T <: Real, I <: Integer}
 
-    (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in alm_1"))
+    (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
 
     comm = d_map.info.comm
     resolution = Resolution(d_map.info.nside)
@@ -383,10 +383,10 @@ function Gather!(
     ) where {T<:Real, I<:Integer, S<:Strategy}
 
     (out_map.i.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(d_map.pixels, 2) >= 3) || throw(size(d_map.pixels, 2), DomainError("Not enough columns in d_map.pixels to represent a polarized map"))
+    (size(in_d_map.pixels, 2) >= 3) || throw(size(in_d_map.pixels, 2), DomainError("Not enough columns in d_map.pixels to represent a polarized map"))
     comp = 1
     for map in [out_map.i, out_map.q, out_map.u]
-        GatherMap!(d_map, map, root, comp)
+        GatherMap!(in_d_map, map, root, comp)
         comp += 1
     end
 
@@ -404,9 +404,9 @@ function Gather!(
     ) where {T<:Real, I<:Integer, S<:Strategy}
 
     (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
-    ncomp = (size(d_map.pixels, 2) >= 3) ? 3 : 1
+    ncomp = (size(in_d_map.pixels, 2) >= 3) ? 3 : 1
     for comp in 1:ncomp
-        GatherMap!(d_map, map, root, comp)
+        GatherMap!(in_d_map, map, root, comp)
     end
 
     if clear
@@ -423,7 +423,7 @@ function Gather!(
     ) where {T<:Real, I<:Integer, S<:Strategy}
 
     (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
-    GatherMap!(d_map, map, root, comp)
+    GatherMap!(in_d_map, map, root, comp)
     if clear
         in_d_map = nothing #free unnecessary copies of map
     end

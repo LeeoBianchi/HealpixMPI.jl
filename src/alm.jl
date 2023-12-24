@@ -191,7 +191,7 @@ end
 import MPI: Scatter!, Gather!, Allgather!
 
 """
-    Scatter!(in_alm::Alm{T,Array{T,1}}, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Scatter!(in_alm::Union{Healpix.Alm{T,Array{T,1}}, Vector{Healpix.Alm{T,Array{T,1}}}}, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
     Scatter!(in_alm::Nothing, out_d_alm::DAlm{T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
     Scatter!(in_alm, out_d_alm::DAlm{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
@@ -267,14 +267,15 @@ end
 """
     Internal function implementing a "Round Robin" strategy.
 
-Specifically relative to the root-task.
 """
-function GatherAlm_root!(
+function GatherAlm!(
     d_alm::DAlm{RR,T,I},
     alm::Healpix.Alm{T,Array{T,1}},
-    root::Integer
+    root::Integer,
+    comp::Integer
     ) where {T<:Number, I<:Integer}
 
+    (size(d_alm.alm, 2) >= comp) || throw(DomainError(size(d_alm.alm, 2), "not enough components in DAlm"))
     comm = d_alm.info.comm
     #local quantities:
     lmax = d_alm.info.lmax
@@ -288,7 +289,7 @@ function GatherAlm_root!(
             local_count = lmax - m + 1
             i1 = local_mstart[mi] + m
             i2 = i1 + lmax - m
-            alm_chunk = @view d_alm.alm[i1:i2] #@view speeds up the slicing
+            alm_chunk = @view d_alm.alm[i1:i2, comp] #@view speeds up the slicing
         else
             local_count = 0
             alm_chunk = ComplexF64[]
@@ -297,34 +298,33 @@ function GatherAlm_root!(
         outbuf = MPI.VBuffer(alm.alm, counts) #the output buffer points at the alms to overwrite
         outbuf.displs .+= displ_shift #we shift to the region in alm corresponding to the current round
         displ_shift += sum(counts) #we update the shift
-
         MPI.Gatherv!(alm_chunk, outbuf, root, comm) #gather the alms of this round
     end
 end
 
-"""
-    Internal function implementing a "Round Robin" strategy.
-
-Specifically relative to non root-tasks: no output is returned.
-"""
-function GatherAlm_rest!(
+function GatherAlm!(
     d_alm::DAlm{RR,T,I},
-    root::Integer
+    alm::Nothing,
+    root::Integer,
+    comp::Integer
     ) where {T<:Number, I<:Integer}
 
+    (size(d_alm.alm, 2) >= comp) || throw(DomainError(size(d_alm.alm, 2), "not enough components in DAlm"))
+    (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
     comm = d_alm.info.comm
     #local quantities:
     lmax = d_alm.info.lmax
     local_mval = d_alm.info.mval
     local_nm = length(local_mval)
     local_mstart = d_alm.info.mstart
+    displ_shift = 0
     @inbounds for mi in 1:d_alm.info.maxnm #loop over the "Robin's Rounds"
         if mi <= local_nm
             m = local_mval[mi]
             local_count = lmax - m + 1
             i1 = local_mstart[mi] + m
             i2 = i1 + lmax - m
-            alm_chunk = @view d_alm.alm[i1:i2] #get the chunk of alm to send to root
+            alm_chunk = @view d_alm.alm[i1:i2, comp] #@view speeds up the slicing
         else
             local_count = 0
             alm_chunk = ComplexF64[]
@@ -335,8 +335,10 @@ function GatherAlm_rest!(
 end
 
 """
-    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Nothing, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Union{Healpix.Alm{T}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Vector{Healpix.Alm{T}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Nothing; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
 Gathers the `DAlm` objects passed on each task overwriting the `Alm`
 object passed in input on the `root` task according to the specified `strategy`
@@ -360,33 +362,50 @@ the (potentially bulky) `DAlm` object.
 """
 function Gather!(
     in_d_alm::DAlm{S,T,I},
-    out_alm::Healpix.Alm{T,Array{T,1}};
+    out_alm::Union{Healpix.Alm{T}, Nothing},
+    comp::Integer;
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
-    if MPI.Comm_rank(in_d_alm.info.comm) == root
-        GatherAlm_root!(in_d_alm, out_alm, root)
-    else
-        GatherAlm_rest!(in_d_alm, root)
+    GatherAlm!(in_d_alm, out_alm, root, comp)
+    if clear
+        in_d_alm = nothing
+    end
+end
+
+Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer} =
+    Gather!(in_d_alm, out_alm, 1, root = root, clear = clear)
+
+#allows non-root tasks to pass nothing as output
+function Gather!(
+    in_d_alm::DAlm{S,T,I},
+    out_alms::Vector{Healpix.Alm{T}};
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {S<:Strategy, T<:Number, I<:Integer}
+
+    size(in_d_alm.alm, 2) == length(out_alms)||throw(DomainError(length(out_alm), "Number of components of input and output alms not matching"))
+    comp = 1
+    for alm in out_alms
+        GatherAlm!(in_d_alm, alm, root, comp)
+        comp += 1
     end
     if clear
         in_d_alm = nothing
     end
 end
 
-#allows non-root tasks to pass nothing as output
 function Gather!(
     in_d_alm::DAlm{S,T,I},
-    out_alm::Nothing;
+    out_alms::Nothing;
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
-    (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
-
-    GatherAlm_rest!(in_d_alm, root) #on root out_alm cannot be nothing
-
+    for comp in 1:size(in_d_alm.alm, 2)
+        GatherAlm!(in_d_alm, out_alms, root, comp)
+    end
     if clear
         in_d_alm = nothing
     end

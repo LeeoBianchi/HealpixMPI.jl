@@ -290,7 +290,7 @@ end
 """
 function GatherMap!(
     d_map::DMap{RR,T,I},
-    map::Union{Healpix.HealpixMap{T,Healpix.RingOrder}, Nothing},
+    map::Healpix.HealpixMap{T,Healpix.RingOrder},
     root::Integer,
     comp::Integer
     ) where {T <: Real, I <: Integer}
@@ -298,7 +298,7 @@ function GatherMap!(
     (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
 
     comm = d_map.info.comm
-    resolution = Resolution(d_map.info.nside)
+    resolution = Healpix.Resolution(d_map.info.nside)
     ringinfo = Healpix.RingInfo(0, 0, 0, 0, 0)
     rings = d_map.info.rings
     rstart = d_map.info.rstart
@@ -313,24 +313,49 @@ function GatherMap!(
             local_displ = 0
             pixels = Float64[]
         end
-        if MPI.Comm_rank(in_d_map.info.comm) == root
-            counts = MPI.Gather(Int32(local_count), root, comm)
-            displs = MPI.Gather(Int32(local_displ), root, comm)
-            outbuf = MPI.VBuffer(map.pixels, counts, displs)
-            MPI.Gatherv!(pixels, outbuf, root, comm)
+        counts = MPI.Gather(Int32(local_count), root, comm)
+        displs = MPI.Gather(Int32(local_displ), root, comm)
+        outbuf = MPI.VBuffer(map.pixels, counts, displs)
+        MPI.Gatherv!(pixels, outbuf, root, comm)
+    end
+end
+
+function GatherMap!(
+    d_map::DMap{RR,T,I},
+    map::Nothing,
+    root::Integer,
+    comp::Integer
+    ) where {T <: Real, I <: Integer}
+
+    (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
+    (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
+
+    comm = d_map.info.comm
+    resolution = Healpix.Resolution(d_map.info.nside)
+    ringinfo = Healpix.RingInfo(0, 0, 0, 0, 0)
+    rings = d_map.info.rings
+    rstart = d_map.info.rstart
+    @inbounds for ri in 1:d_map.info.maxnr
+        if ri <= length(rings)
+            Healpix.getringinfo!(resolution, rings[ri], ringinfo; full=false) #it's a cheap computation
+            local_count = ringinfo.numOfPixels
+            local_displ = ringinfo.firstPixIdx - 1
+            @views pixels = d_map.pixels[rstart[ri]:rstart[ri]+ringinfo.numOfPixels-1, comp] #we select that ring's pixels
         else
-            MPI.Gather(Int32(local_count), root, comm)
-            MPI.Gather(Int32(local_displ), root, comm)
-            MPI.Gatherv!(pixels, nothing, root, comm)
+            local_count = 0
+            local_displ = 0
+            pixels = Float64[]
         end
+        MPI.Gather(Int32(local_count), root, comm)
+        MPI.Gather(Int32(local_displ), root, comm)
+        MPI.Gatherv!(pixels, nothing, root, comm)
     end
 end
 
 """
-    Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}, comp::Integer; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
+    Gather!(in_d_map::DMap{S,T,I}, out_map::Union{Healpix.HealpixMap{T,Healpix.RingOrder}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
     Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
     Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Gather!(in_d_map::DMap{S,T,I}, out_map::Nothing, comp::Integer; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
     Gather!(in_d_map::DMap{S,T,I}, out_map::Nothing; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
 
 Gathers the `DMap` objects passed on each task overwriting the `HealpixMap` or `PolarizedHealpixMap`
@@ -357,7 +382,7 @@ the (potentially bulky) `DMap` object.
 """
 function Gather!(
     in_d_map::DMap{S,T,I},
-    out_map::Healpix.HealpixMap{T,Healpix.RingOrder},
+    out_map::Union{Healpix.HealpixMap{T,Healpix.RingOrder}, Nothing},
     comp::Integer;
     root::Integer = 0,
     clear::Bool = false
@@ -403,27 +428,11 @@ function Gather!(
     clear::Bool = false
     ) where {T<:Real, I<:Integer, S<:Strategy}
 
-    (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
     ncomp = (size(in_d_map.pixels, 2) >= 3) ? 3 : 1
     for comp in 1:ncomp
-        GatherMap!(in_d_map, map, root, comp)
+        GatherMap!(in_d_map, out_map, root, comp)
     end
 
-    if clear
-        in_d_map = nothing #free unnecessary copies of map
-    end
-end
-
-function Gather!(
-    in_d_map::DMap{S,T,I},
-    out_map::Nothing,
-    comp::Integer;
-    root::Integer = 0,
-    clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
-
-    (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
-    GatherMap!(in_d_map, map, root, comp)
     if clear
         in_d_map = nothing #free unnecessary copies of map
     end

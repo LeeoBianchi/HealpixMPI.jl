@@ -479,7 +479,7 @@ function Allgather!(
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
-    AllgatherAlm!(in_d_alm, out_alm)
+    AllgatherAlm!(in_d_alm, out_alm, comp)
 
     if clear
         in_d_alm = nothing

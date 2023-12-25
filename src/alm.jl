@@ -335,9 +335,9 @@ function GatherAlm!(
 end
 
 """
-    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Union{Healpix.Alm{T}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
-    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Vector{Healpix.Alm{T}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Union{Healpix.Alm{T,Array{T,1}}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T,Array{T,1}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
     Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Nothing; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
 Gathers the `DAlm` objects passed on each task overwriting the `Alm`
@@ -362,7 +362,7 @@ the (potentially bulky) `DAlm` object.
 """
 function Gather!(
     in_d_alm::DAlm{S,T,I},
-    out_alm::Union{Healpix.Alm{T}, Nothing},
+    out_alm::Union{Healpix.Alm{T,Array{T,1}}, Nothing},
     comp::Integer;
     root::Integer = 0,
     clear::Bool = false
@@ -374,13 +374,13 @@ function Gather!(
     end
 end
 
-Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer} =
+Gather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T,Array{T,1}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer} =
     Gather!(in_d_alm, out_alm, 1, root = root, clear = clear)
 
 #allows non-root tasks to pass nothing as output
 function Gather!(
     in_d_alm::DAlm{S,T,I},
-    out_alms::Vector{Healpix.Alm{T}};
+    out_alms::Vector{Healpix.Alm{T,Array{T,1}}};
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
@@ -418,6 +418,7 @@ end
 function AllgatherAlm!(
     d_alm::DAlm{RR,T,I},
     alm::Healpix.Alm{T,Array{T,1}},
+    comp::Integer
     ) where {T<:Number, I<:Integer}
 
     comm = d_alm.info.comm
@@ -433,7 +434,7 @@ function AllgatherAlm!(
             local_count = lmax - m + 1
             i1 = local_mstart[mi] + m
             i2 = i1 + lmax - m
-            alm_chunk = @view d_alm.alm[i1:i2] #@view speeds up the slicing
+            alm_chunk = @view d_alm.alm[i1:i2, comp] #@view speeds up the slicing
         else
             local_count = 0
             alm_chunk = ComplexF64[]
@@ -448,7 +449,9 @@ function AllgatherAlm!(
 end
 
 """
-    Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T,Array{T,1}}, comp::Integer; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}, comp::Integer; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
+    Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer}
 
 Gathers the `DAlm` objects passed on each task overwriting the `Alm`
 object passed in input on the `root` task according to the specified `strategy`
@@ -471,7 +474,8 @@ the (potentially bulky) `DAlm` object.
 """
 function Allgather!(
     in_d_alm::DAlm{S,T,I},
-    out_alm::Healpix.Alm{T,Array{T,1}};
+    out_alm::Healpix.Alm{T,Array{T,1}},
+    comp::Integer,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
@@ -482,6 +486,26 @@ function Allgather!(
     end
 end
 
+Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number, I<:Integer} =
+    Allgather!(in_d_alm, out_alm, 1, clear = clear)
+
+function Allgather!(
+    in_d_alm::DAlm{S,T,I},
+    out_alms::Vector{Healpix.Alm{T,Array{T,1}}},
+    comp::Integer,
+    clear::Bool = false
+    ) where {S<:Strategy, T<:Number, I<:Integer}
+
+    size(in_d_alm.alm, 2) == length(out_alms)||throw(DomainError(length(out_alm), "Number of components of input and output alms not matching"))
+    comp = 1
+    for out_alm in out_alms
+        AllgatherAlm!(in_d_alm, out_alm, comp)
+        comp += 1
+    end
+    if clear
+        in_d_map = nothing
+    end
+end
 #########################################################################
 """
 	≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}

@@ -328,7 +328,7 @@ function GatherMap!(
     ) where {T <: Real, I <: Integer}
 
     (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
-    (MPI.Comm_rank(in_d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
+    (MPI.Comm_rank(d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
 
     comm = d_map.info.comm
     resolution = Healpix.Resolution(d_map.info.nside)
@@ -520,7 +520,7 @@ function Allgather!(
     ) where  {T<:Real, I<:Integer, S<:Strategy}
 
     (out_map.i.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(d_map.pixels, 2) >= 3) || throw(size(d_map.pixels, 2), DomainError("Not enough columns in d_map.pixels to represent a polarized map"))
+    (size(in_d_map.pixels, 2) >= 3) || throw(size(in_d_map.pixels, 2), DomainError("Not enough columns in d_map.pixels to represent a polarized map"))
     comp = 1
     for map in [out_map.i, out_map.q, out_map.u]
         AllgatherMap!(in_d_map, out_map, comp)

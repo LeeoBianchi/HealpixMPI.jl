@@ -475,7 +475,7 @@ the (potentially bulky) `DAlm` object.
 function Allgather!(
     in_d_alm::DAlm{S,T,I},
     out_alm::Healpix.Alm{T,Array{T,1}},
-    comp::Integer,
+    comp::Integer;
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
@@ -492,7 +492,7 @@ Allgather!(in_d_alm::DAlm{S,T,I}, out_alm::Healpix.Alm{T,Array{T,1}}; clear::Boo
 function Allgather!(
     in_d_alm::DAlm{S,T,I},
     out_alms::Vector{Healpix.Alm{T,Array{T,1}}},
-    comp::Integer,
+    comp::Integer;
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 

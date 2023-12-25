@@ -310,7 +310,7 @@ function GatherAlm!(
     ) where {T<:Number, I<:Integer}
 
     (size(d_alm.alm, 2) >= comp) || throw(DomainError(size(d_alm.alm, 2), "not enough components in DAlm"))
-    (MPI.Comm_rank(in_d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
+    (MPI.Comm_rank(d_alm.info.comm) != root)||throw(DomainError(0, "output alm on root task can not be `nothing`."))
     comm = d_alm.info.comm
     #local quantities:
     lmax = d_alm.info.lmax
@@ -385,7 +385,7 @@ function Gather!(
     clear::Bool = false
     ) where {S<:Strategy, T<:Number, I<:Integer}
 
-    size(in_d_alm.alm, 2) == length(out_alms)||throw(DomainError(length(out_alm), "Number of components of input and output alms not matching"))
+    size(in_d_alm.alm, 2) == length(out_alms)||throw(DomainError(length(out_alm), "Number of components in input and output alms not matching"))
     comp = 1
     for alm in out_alms
         GatherAlm!(in_d_alm, alm, root, comp)

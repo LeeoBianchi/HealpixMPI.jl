@@ -1,6 +1,6 @@
 
 """
-    struct GeomInfoMPI{T<:Real, I<:Integer}
+    struct GeomInfoMPI
 
 Information describing an MPI-distributed subset of a `HealpixMap`, contained in a `DMap`.
 
@@ -16,40 +16,47 @@ A `GeomInfoMPI` type contains:
 - `phi0`: array containing the values of the azimuth (in radians) of the first pixel in every ring.
 
 """
-mutable struct GeomInfoMPI{T<:Real, I<:Integer}
+mutable struct GeomInfoMPI
     #communicator
     comm::MPI.Comm
 
     #global info
-    nside::I
-    maxnr::I
-    thetatot::Vector{T}
+    nside::Int
+    maxnr::Int
+    thetatot::Vector{Float64}
 
     #local info
-    rings::Vector{I}
-    rstart::Vector{I}
-    nphi::Vector{I}
-    theta::Vector{T}
-    phi0::Vector{T}
+    rings::Vector{Int}
+    rstart::Vector{Int}
+    nphi::Vector{Int}
+    theta::Vector{Float64}
+    phi0::Vector{Float64}
 
-    GeomInfoMPI{T,I}(nside::I, maxnr::I, thetatot::Vector{T}, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
-        new{T,I}(comm, nside, maxnr, thetatot, rings, rstart, nphi, theta, phi0)
+    GeomInfoMPI(nside::I, maxnr::I, thetatot::Vector{T}, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
+        new(comm, nside, maxnr, thetatot, rings, rstart, nphi, theta, phi0)
 end
-
+#without thetatot
 GeomInfoMPI(nside::I, maxnr::I, rings::Vector{I}, rstart::Vector{I}, nphi::Vector{I}, theta::Vector{T}, phi0::Vector{T}, comm::MPI.Comm) where {T <: Real, I <: Integer} =
-    GeomInfoMPI{T,I}(nside, maxnr, ring2theta(Resolution(nside)), rings, rstart, nphi, theta, phi0, comm)
-
-GeomInfoMPI{T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), comm)
-GeomInfoMPI(comm::MPI.Comm) = GeomInfoMPI{Float64, Int64}(comm)
+    GeomInfoMPI(nside, maxnr, ring2theta(Healpix.Resolution(nside)), rings, rstart, nphi, theta, phi0, comm)
+#only comm
+GeomInfoMPI(comm::MPI.Comm) =
+    GeomInfoMPI(0, 0, Vector{Float64}(undef, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Float64}(undef, 0), Vector{Float64}(undef, 0), comm)
 #empty constructor
-GeomInfoMPI{T,I}() where {T<:Real, I<:Integer} = GeomInfoMPI{T,I}(0, 0, Vector{T}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{I}(undef, 0), Vector{T}(undef, 0), Vector{T}(undef, 0), MPI.COMM_NULL)
-GeomInfoMPI() = GeomInfoMPI{Float64, Int64}()
+GeomInfoMPI() =
+    GeomInfoMPI(0, 0, Vector{Float64}(undef, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Float64}(undef, 0), Vector{Float64}(undef, 0), MPI.COMM_NULL)
 
 """
-    struct DMap{S<:Strategy, T<:Real, I<:Integer}
+    Abstract type to allow multiple dispatch.
+"""
+abstract type AbstractDMap end
+
+"""
+    struct DMap{S<:Strategy, T<:Real, N} <: AbstractDMap
 
 A subset of a Healpix map, containing only certain rings (as specified in the `info` field).
-The type `T` is used for the value of the pixels in a map, it must be a `Number` (usually float).
+The type `T` is used for the value of the pixels in a map, it must be a `Real` (usually float).
+The signature field `N` represents the number of components in the `DMap` object, it can only be `1`
+for a spin-0 field and `2` otherwise.
 
 A `DMap` type contains the following fields:
 
@@ -61,28 +68,27 @@ this is already automatically constructed when [`MPI.Scatter!`](@ref) is called,
 method for initializing a `DMap` is reccomended.
 
 """
-mutable struct DMap{S<:Strategy, T<:Real, I<:Integer}
+mutable struct DMap{S<:Strategy, T<:Real} <: AbstractDMap
     pixels::Matrix{T} #alias of Array{T,2}
-    info::GeomInfoMPI{T,I}
+    info::GeomInfoMPI
 
-    DMap{S,T,I}(pixels::Matrix{T}, info::GeomInfoMPI{T,I}) where {S<:Strategy, T<:Real, I<:Integer} =
-        new{S,T,I}(pixels, info)
+    DMap{S,T}(pixels::Matrix{T}, info::GeomInfoMPI) where {S<:Strategy, T<:Real} = new{S,T}(pixels, info)
 end
 
-DMap{S}(pixels::Matrix{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<: Integer, S<:Strategy} =
-    DMap{S,T,I}(pixels, info)
+#get N automatically
+DMap{S}(pixels::Matrix{T}, info::GeomInfoMPI) where {T<:Real, S<:Strategy} = DMap{S,T}(pixels, info)
+DMap{S}(pixels::Matrix{T}) where {T<:Real, S<:Strategy} = DMap{S,T}(pixels, GeomInfoMPI())
 
-#spin-0 constructor
-DMap{S}(pixels::Vector{T}, info::GeomInfoMPI{T,I}) where {T<:Real, I<: Integer, S<:Strategy} =
-    DMap{S,T,I}(reshape(pixels, :, 1), info)
-
-DMap{S,T,I}(comm::MPI.Comm) where {T<:Real, I<:Integer, S<:Strategy} = DMap{S,T,I}(Matrix{T}(undef, 0, 1), GeomInfoMPI{T,I}(comm))
-DMap{S}(comm::MPI.Comm) where {S<:Strategy} = DMap{S, Float64, Int64}(comm)
+#comm-only constructors
+DMap{S,T}(comm::MPI.Comm) where {T<:Real, S<:Strategy} = DMap{S,T}(Matrix{T}(undef, 0, 1), GeomInfoMPI(comm))
+DMap{S}(comm::MPI.Comm) where {S<:Strategy} = DMap{S,Float64}(comm)
 
 #lazy constructors
-DMap{S,T,I}() where {S<:Strategy, T<:Real, I<:Integer} = DMap{S,T,I}(Matrix{T}(undef, 0, 1), GeomInfoMPI{T,I}())
-DMap{S}() where {S<:Strategy} = DMap{S, Float64, Int64}()
+DMap{S,T}() where {T<:Real, S<:Strategy} = DMap{S,T}(Matrix{T}(undef, 0, 1), GeomInfoMPI())
+DMap{S}() where {S<:Strategy} = DMap{S,Float64}()
 
+#Overload of size operator
+Base.size(m::DMap{S,T}) where {S,T} = size(m.pixels)
 
 """
     get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
@@ -144,8 +150,8 @@ The input map object is broadcasted by `MPI.Scatter!`.
 """
 function ScatterMap!(
     map::Healpix.HealpixMap{T,Healpix.RingOrder},
-    d_map::DMap{RR,T,I} #Round Robin, can add more as overloads
-    ) where {T <: Real, I <: Integer}
+    d_map::DMap{RR,T} #Round Robin, can add more as overloads
+    ) where {T <: Real}
 
     #stride = 1
     c_rank = MPI.Comm_rank(d_map.info.comm)
@@ -192,33 +198,36 @@ end
 
 function ScatterMap!(
     polmap::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder},
-    d_map::DMap{RR,T,I} #Round Robin, can add more as overloads
-    ) where {T <: Real, I <: Integer}
+    d_map::DMap{RR,T}, #Round Robin, can add more as overloads
+    ) where {T <: Real}
 
-    ScatterMap!(polmap.i, d_map) #first call the scalar function to build the info in d_map
-    comp = 2
-    for map in [polmap.q, polmap.u] #then we add the other maps
-        d_map.pixels = cat(d_map.pixels, Array{T}(undef, length(d_map.pixels), 1), dims = 2) #extra columns for q & u maps
-        done = 0
-        @inbounds for ring in d_map.info.rstart
-            new_pixels = Healpix.getRingPixels(map, ringinfo)
-            @views d_map.pixels[done+1:done+length(new_pixels), comp] = new_pixels
-            done += length(new_pixels)
-        end
-        comp += 1
+    ScatterMap!(polmap.q, d_map) #first call the scalar function to build the info in d_map along with q map
+    d_map.pixels = cat(d_map.pixels, Array{T}(undef, size(d_map.pixels, 1), 1), dims = 2) #extra columns for u map
+    done = 0
+    @inbounds for ring in d_map.info.rings
+        new_pixels = Healpix.getRingPixels(polmap.u, ring)
+        @views d_map.pixels[done+1:done+length(new_pixels), 2] = new_pixels #fill u component
+        done += length(new_pixels)
     end
 end
 
 import MPI: Scatter!, Gather!, Allgather!
 
 """
-    Scatter!(in_map::Union{Healpix.HealpixMap{T1, Healpix.RingOrder}, Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder}}, out_d_map::DMap{S,T2,I}; root::Integer = 0, clear::Bool = false) where {T1<:Real, T2<:Real, I<:Integer, S<:Strategy}
-    Scatter!(in_map::Nothing, out_d_map::DMap{S,T,I}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Scatter!(in_map, out_d_map::DMap{S,T,I}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
+    Scatter!(in_map::Union{Healpix.HealpixMap{T1, Healpix.RingOrder}, Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder}}, out_d_map::DMap{S,T2,I}; root::Integer = 0, clear::Bool = false) where {T1<:Real, T2<:Real, S<:Strategy}
+    Scatter!(in_map::Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder}, out_d_map::DMap{S,T2}, out_d_pol_map::DMap{S,T2}; root::Integer = 0, clear::Bool = false) where {T1<:Real, T2<:Real, S<:Strategy}
+    Scatter!(in_map::Nothing, out_d_map::DMap{S,T}; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
+    Scatter!(in_map::Nothing, out_d_map::DMap{S,T}, out_d_pol_map::DMap{S,T}; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
+    Scatter!(in_map, out_d_map::DMap{S,T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
+    Scatter!(in_map, out_d_map::DMap{S,T}, out_d_pol_map::DMap{S,T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
 
 Distributes the `HealpixMap` object passed in input on the `root` task overwriting the
-`DMap` objects passed on each task, according to the specified strategy
-(by default ":RR" for Round Robin).
+`DMap` objects passed on each task, according to the specified strategy.
+
+There are two options to distribute a `HealpixMap` which represents a polarized field:
+- To pass an input `PolarizedHealpixMap` object and only one output `DMap` object, in this case the latter will be exclusively filled with its `q` and `u` components.
+- To pass an input `PolarizedHealpixMap` object and two output `DMap` object, in this case one will contain the `i` map, while the second `q` and `u`.
+This is so that the resulting `DMap` objects can be directly passed to the sht functions which only accept in input the intensity component for a scalar transform and two polarization components for a spinned transform.
 
 As in the standard MPI function, the `in_map` in input can be `nothing` on non-root tasks,
 since it will be ignored anyway.
@@ -227,27 +236,27 @@ If the keyword `clear` is set to `true` it frees the memory of each task from th
 
 # Arguments:
 - `in_map: `HealpixMap` or `PolarizedHealpixMap` object to distribute over the MPI tasks.
-- `out_d_map::DMap{S,T,I}`: output `DMap` object.
+- `out_d_map::DMap{S,T}`: output `DMap` object.
 
 # Keywords:
 - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
 - `clear::Bool`: if true deletes the input map after having performed the "scattering".
-"""
+""" #(by default ":RR" for Round Robin).
 function Scatter!(
     in_map::Union{Healpix.HealpixMap{T1, Healpix.RingOrder}, Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder}},
-    out_d_map::DMap{S,T2,I};
+    out_d_pol_map::DMap{S,T2};
     root::Integer = 0,
     clear::Bool = false
-    ) where {T1<:Real, T2<:Real, I<:Integer, S<:Strategy}
+    ) where {T1<:Real, T2<:Real, S<:Strategy}
 
-    comm = out_d_map.info.comm
+    comm = out_d_pol_map.info.comm
     if MPI.Comm_rank(comm) == root
         MPI.bcast(in_map, root, comm)
     else
         in_map = MPI.bcast(nothing, root, comm)
     end
 
-    ScatterMap!(in_map, out_d_map)
+    ScatterMap!(in_map, out_d_pol_map)
 
     if clear
         in_map = nothing #free unnecessary copies of map
@@ -255,11 +264,23 @@ function Scatter!(
 end
 
 function Scatter!(
-    in_map::Nothing,
-    out_d_map::DMap{S,T,I};
+    in_map::Healpix.PolarizedHealpixMap{T1, Healpix.RingOrder},
+    out_d_map::DMap{S,T2},
+    out_d_pol_map::DMap{S,T2};
     root::Integer = 0,
     clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
+    ) where {T1<:Real, T2<:Real, S<:Strategy}
+
+    Scatter!(in_map.i, out_d_map, root = root, clear = clear)
+    Scatter!(in_map, out_d_pol_map, root = root, clear = clear)
+end
+
+function Scatter!(
+    in_map::Nothing,
+    out_d_map::DMap{S,T};
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {T<:Real, S<:Strategy}
 
     comm = out_d_map.info.comm
     (MPI.Comm_rank(comm) != root)||throw(DomainError(0, "Input map on root task can NOT be `nothing`."))
@@ -273,14 +294,39 @@ function Scatter!(
 end
 
 function Scatter!(
+    in_map::Nothing,
+    out_d_map::DMap{S,T},
+    out_d_pol_map::DMap{S,T};
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {T<:Real, S<:Strategy}
+
+    Scatter!(in_map, out_d_map, root = root, clear = clear)
+    Scatter!(in_map, out_d_pol_map, root = root, clear = clear)
+end
+
+function Scatter!(
     in_map,
-    out_d_map::DMap{S,T,I},
+    out_d_map::DMap{S,T},
     comm::MPI.Comm;
     root::Integer = 0,
     clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
+    ) where {T<:Real, S<:Strategy}
     out_d_map.info.comm = comm #overwrites comm in d_map
     MPI.Scatter!(in_map, out_d_map, root = root, clear = clear)
+end
+
+function Scatter!(
+    in_map,
+    out_d_map::DMap{S,T},
+    out_d_pol_map::DMap{S,T},
+    comm::MPI.Comm;
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {T<:Real, S<:Strategy}
+    out_d_map.info.comm = comm #overwrites comm in d_map
+    out_d_pol_map.info.comm = comm
+    MPI.Scatter!(in_map, out_d_map, out_d_pol_map, root = root, clear = clear)
 end
 
 #######################################################################
@@ -289,11 +335,11 @@ end
 
 """
 function GatherMap!(
-    d_map::DMap{RR,T,I},
+    d_map::DMap{RR,T},
     map::Healpix.HealpixMap{T,Healpix.RingOrder},
     root::Integer,
     comp::Integer
-    ) where {T <: Real, I <: Integer}
+    ) where {T <: Real}
 
     (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
 
@@ -311,7 +357,7 @@ function GatherMap!(
         else
             local_count = 0
             local_displ = 0
-            pixels = Float64[]
+            pixels = Float64[]{T<:Number}
         end
         counts = MPI.Gather(Int32(local_count), root, comm)
         displs = MPI.Gather(Int32(local_displ), root, comm)
@@ -320,12 +366,13 @@ function GatherMap!(
     end
 end
 
+#non-root
 function GatherMap!(
-    d_map::DMap{RR,T,I},
+    d_map::DMap{RR,T},
     map::Nothing,
     root::Integer,
     comp::Integer
-    ) where {T <: Real, I <: Integer}
+    ) where {T <: Real}
 
     (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
     (MPI.Comm_rank(d_map.info.comm) != root)||throw(DomainError(0, "Output map on root task can not be nothing."))
@@ -353,24 +400,22 @@ function GatherMap!(
 end
 
 """
-    Gather!(in_d_map::DMap{S,T,I}, out_map::Union{Healpix.HealpixMap{T,Healpix.RingOrder}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Gather!(in_d_map::DMap{S,T,I}, out_map::Nothing; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
+    Gather!(in_d_map::DMap{S,T}, out_map::Union{Healpix.HealpixMap{T,Healpix.RingOrder}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
+    Gather!(in_d_map::DMap{S,T}, out_map; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
+    Gather!(in_d_map::DMap{S,T}, in_d_pol_map::DMap{S,T}, out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder}; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
+    Gather!(in_d_map::DMap{S,T}, in_d_pol_map::DMap{S,T}, out_map::Nothing; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy}
 
 Gathers the `DMap` objects passed on each task overwriting the `HealpixMap` or `PolarizedHealpixMap`
-object passed in input on the `root` task according to the specified `strategy`
-(by default `:RR` for Round Robin). Note that the strategy must match the one used
-to "scatter" the map.
+object passed in input on the `root` task according to the specified `Strategy`.
 
-Similarly to the standard MPI function, the `out_map` can be non-initialized on non-root tasks,
+Similarly to the standard MPI function, the `out_map` can be `nothing` on non-root tasks,
 since it will be ignored anyway.
 
 If the keyword `clear` is set to `true` it frees the memory of each task from
 the (potentially bulky) `DMap` object.
 
 # Arguments:
-- `in_d_map::DMap{T, I}`: `DMap` object to gather from the MPI tasks.
+- `in_d_map::DMap{S,T}`: `DMap` object to gather from the MPI tasks.
 - `out_map`: output `HealpixMap` or `PolarizedHealpixMap` object.
 
 # Optional:
@@ -381,12 +426,12 @@ the (potentially bulky) `DMap` object.
 - `clear::Bool`: if true deletes the input `DMap` after having performed the "scattering".
 """
 function Gather!(
-    in_d_map::DMap{S,T,I},
+    in_d_map::DMap{S,T},
     out_map::Union{Healpix.HealpixMap{T,Healpix.RingOrder}, Nothing},
     comp::Integer;
     root::Integer = 0,
     clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
+    ) where {T<:Real, S<:Strategy}
 
     (out_map.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
     GatherMap!(in_d_map, out_map, root, comp)
@@ -396,25 +441,25 @@ function Gather!(
     end
 end
 #defaults comp to 1
-Gather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; root::Integer = 0, clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy} =
+Gather!(in_d_map::DMap{S,T}, out_map; root::Integer = 0, clear::Bool = false) where {T<:Real, S<:Strategy} =
     Gather!(in_d_map, out_map, 1, root = root, clear = clear)
 
 #for polarized maps
 function Gather!(
-    in_d_map::DMap{S,T,I},
+    in_d_map::DMap{S,T},
+    in_d_pol_map::DMap{S,T},
     out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder};
     root::Integer = 0,
     clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
+    ) where {T<:Real, S<:Strategy}
 
     (out_map.i.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(in_d_map.pixels, 2) >= 3) || throw(size(in_d_map.pixels, 2), DomainError("Not enough columns in d_map.pixels to represent a polarized map"))
-    comp = 1
-    for map in [out_map.i, out_map.q, out_map.u]
-        GatherMap!(in_d_map, map, root, comp)
-        comp += 1
-    end
+    (out_map.i.resolution.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
+    (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_pol_map.pixels, 2), DomainError("Not enough components to represent a polarized map"))
 
+    GatherMap!(in_d_map, out_map.i, root, 1)      #I
+    GatherMap!(in_d_pol_map, out_map.q, root, 1)  #Q
+    GatherMap!(in_d_pol_map, out_map.u, root, 2)  #U
     if clear
         in_d_map = nothing #free unnecessary copies of map
     end
@@ -422,16 +467,19 @@ end
 
 #non-root tasks where it can be nothing
 function Gather!(
-    in_d_map::DMap{S,T,I},
+    in_d_map::DMap{S,T},
+    in_d_pol_map::DMap{S,T},
     out_map::Nothing;
     root::Integer = 0,
     clear::Bool = false
-    ) where {T<:Real, I<:Integer, S<:Strategy}
+    ) where {T<:Real, S<:Strategy}
 
-    ncomp = (size(in_d_map.pixels, 2) >= 3) ? 3 : 1
-    for comp in 1:ncomp
-        GatherMap!(in_d_map, out_map, root, comp)
-    end
+    (in_d_map.info.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
+    (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_pol_map.pixels, 2), DomainError("Not enough components to represent a polarized map"))
+
+    GatherMap!(in_d_map, out_map, root, 1)      #I
+    GatherMap!(in_d_pol_map, out_map, root, 1)  #Q
+    GatherMap!(in_d_pol_map, out_map, root, 2)  #U
 
     if clear
         in_d_map = nothing #free unnecessary copies of map
@@ -443,10 +491,10 @@ end
     Internal function implementing a "Round Robin" strategy.
 """
 function AllgatherMap!(
-    d_map::DMap{RR,T,I},
+    d_map::DMap{RR,T},
     map::Healpix.HealpixMap{T,Healpix.RingOrder},
     comp::Integer
-    ) where {T<:Real, I<:Integer}
+    ) where {T<:Real}
 
     comm = d_map.info.comm
     #each task can have at most root_nring + 1
@@ -473,9 +521,9 @@ function AllgatherMap!(
 end
 
 """
-    Allgather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder} comp::Integer; clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Allgather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
-    Allgather!(in_d_map::DMap{S,T,I}, out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder}; clear::Bool = false) where {T<:Real, I<:Integer, S<:Strategy}
+    Allgather!(in_d_map::DMap{S,T}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder} comp::Integer; clear::Bool = false) where {T<:Real, S<:Strategy}
+    Allgather!(in_d_map::DMap{S,T}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; clear::Bool = false) where {T<:Real, S<:Strategy}
+    Allgather!(in_d_map::DMap{S,T}, out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder}; clear::Bool = false) where {T<:Real, S<:Strategy}
 
 Gathers the `DMap` objects passed on each task overwriting the `out_map`
 object passed in input on EVERY task according to the specified `strategy`
@@ -486,7 +534,7 @@ If the keyword `clear` is set to `true` it frees the memory of each task from
 the (potentially bulky) `DMap` object.
 
 # Arguments:
-- `in_d_map::DMap{S,T,I}`: `DMap` object to gather from the MPI tasks.
+- `in_d_map::DMap{S,T}`: `DMap` object to gather from the MPI tasks.
 - `out_d_map`: output `HealpixMap` or `PolarizedHealpixMap` object to overwrite.
 
 # Optional:
@@ -496,11 +544,11 @@ the (potentially bulky) `DMap` object.
 - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function Allgather!(
-    in_d_map::DMap{S,T,I},
+    in_d_map::DMap{S,T},
     out_map::Healpix.HealpixMap{T,Healpix.RingOrder},
     comp::Integer;
     clear::Bool = false
-    ) where  {T<:Real, I<:Integer, S<:Strategy}
+    ) where  {T<:Real, S<:Strategy}
 
     (out_map.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
     AllgatherMap!(in_d_map, out_map, comp)
@@ -510,33 +558,36 @@ function Allgather!(
     end
 end
 
-Allgather!(in_d_map::DMap{S,T,I}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; clear::Bool = false) where  {T<:Real, I<:Integer, S<:Strategy} =
+#defaults comp to 1
+Allgather!(in_d_map::DMap{S,T}, out_map::Healpix.HealpixMap{T,Healpix.RingOrder}; clear::Bool = false) where  {T<:Real, S<:Strategy} =
     Allgather!(in_d_map, out_map, 1, clear = clear)
 
 function Allgather!(
-    in_d_map::DMap{S,T,I},
+    in_d_map::DMap{S,T},
+    in_d_pol_map::DMap{S,T},
     out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder};
     clear::Bool = false
-    ) where  {T<:Real, I<:Integer, S<:Strategy}
+    ) where  {T<:Real, S<:Strategy}
 
     (out_map.i.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(in_d_map.pixels, 2) >= 3) || throw(size(in_d_map.pixels, 2), DomainError("Not enough columns in d_map.pixels to represent a polarized map"))
-    comp = 1
-    for map in [out_map.i, out_map.q, out_map.u]
-        AllgatherMap!(in_d_map, out_map, comp)
-        comp += 1
-    end
+    (out_map.i.resolution.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
+    (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_map.pixels, 2), DomainError("Not enough comps in d_map.pixels to represent a polarized map"))
+
+    AllgatherMap!(in_d_map, out_map.i, 1)       #I
+    AllgatherMap!(in_d_pol_map, out_map.q, 1)   #Q
+    AllgatherMap!(in_d_pol_map, out_map.u, 2)   #U
+
     if clear
         in_d_map = nothing
     end
 end
 
 """
-    ≃(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}) where {S<:Strategy, T<:Number, I<:Integer}
+    ≃(alm₁::DAlm{S,T}, alm₂::DAlm{S,T}) where {S<:Strategy, T<:Real}
 
 Similarity operator, returns `true` if the two arguments have matching `info` objects.
 """
-function ≃(map₁::DMap{S,T,I}, map₂::DMap{S,T,I}) where {S<:Strategy, T<:Real, I<:Integer}
+function ≃(map₁::DMap{S,T}, map₂::DMap{S,T}) where {S<:Strategy, T<:Real}
     (&)((map₁.info.comm == map₂.info.comm),
         (map₁.info.nside == map₂.info.nside),
         (map₁.info.maxnr == map₂.info.maxnr),
@@ -551,20 +602,20 @@ end
 ## DMap Algebra
 import Base: +, -, *, /
 
-+(a::DMap{S,T,I}, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DMap{S,T,I}(a.pixels .+ b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
--(a::DMap{S,T,I}, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DMap{S,T,I}(a.pixels .- b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
-*(a::DMap{S,T,I}, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DMap{S,T,I}(a.pixels .* b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
-/(a::DMap{S,T,I}, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} =
-    DMap{S,T,I}(a.pixels ./ b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
++(a::DMap{S,T}, b::DMap{S,T}) where {T<:Real, S<:Strategy} =
+    DMap{S,T}(a.pixels .+ b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
+-(a::DMap{S,T}, b::DMap{S,T}) where {T<:Real, S<:Strategy} =
+    DMap{S,T}(a.pixels .- b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
+*(a::DMap{S,T}, b::DMap{S,T}) where {T<:Real, S<:Strategy} =
+    DMap{S,T}(a.pixels .* b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
+/(a::DMap{S,T}, b::DMap{S,T}) where {T<:Real, S<:Strategy} =
+    DMap{S,T}(a.pixels ./ b.pixels, a ≃ b ? a.info : throw(DomainError(0,"info not matching")))
 
-+(a::DMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DMap{S,T,I}(a.pixels .+ b, a.info)
--(a::DMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = a + (-b)
-*(a::DMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DMap{S,T,I}(a.pixels .* b, a.info)
-/(a::DMap{S,T,I}, b::Number) where {T<:Real, I<:Integer, S<:Strategy} = DMap{S,T,I}(a.pixels ./ b, a.info)
++(a::DMap{S,T}, b::Number) where {T<:Real, S<:Strategy} = DMap{S,T}(a.pixels .+ b, a.info)
+-(a::DMap{S,T}, b::Number) where {T<:Real, S<:Strategy} = a + (-b)
+*(a::DMap{S,T}, b::Number) where {T<:Real, S<:Strategy} = DMap{S,T}(a.pixels .* b, a.info)
+/(a::DMap{S,T}, b::Number) where {T<:Real, S<:Strategy} = DMap{S,T}(a.pixels ./ b, a.info)
 
-+(a::Number, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} = b + a
-*(a::Number, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} = b * a
-/(a::Number, b::DMap{S,T,I}) where {T<:Real, I<:Integer, S<:Strategy} = DMap{S,T,I}(a ./ b.pixels, b.info)
++(a::Number, b::DMap{S,T}) where {T<:Real, S<:Strategy} = b + a
+*(a::Number, b::DMap{S,T}) where {T<:Real, S<:Strategy} = b * a
+/(a::Number, b::DMap{S,T}) where {T<:Real, S<:Strategy} = DMap{S,T}(a ./ b.pixels, b.info)

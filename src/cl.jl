@@ -2,7 +2,7 @@
 """
     Computes the local contribution to the power spectrum ``C_{\\ell}``.
 """
-function alm2cl_local(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number, I<:Integer}
+function alm2cl_local(alm₁::DAlm{S,T}, alm₂::DAlm{S,T}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number}
     (alm₁.info == alm₂.info) || throw(DomainError("infos not matching"))
 
     comp₁ = (size(alm₁.alm, 2) >= comp₁) ? comp₁ : throw(DomainError(4, "not enough components in alm_1"))
@@ -21,8 +21,8 @@ function alm2cl_local(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer
 end
 
 """
-    alm2cl(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number, I<:Integer} -> Vector{T}
-    alm2cl(alm::DAlm{S,T,I}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number, I<:Integer} -> Vector{T}
+    alm2cl(alm₁::DAlm{S,T}, alm₂::DAlm{S,T}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number} -> Vector{T}
+    alm2cl(alm::DAlm{S,T}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number} -> Vector{T}
 
 Compute the power spectrum ``C_{\\ell}`` on each MPI task from the spherical harmonic
 coefficients of one or two fields, distributed as `DAlm`.
@@ -30,19 +30,19 @@ Use the keywords `comp₁` and `comp₂` to specify which component (column) of 
 to be used for the computations
 
 """
-function Healpix.alm2cl(alm₁::DAlm{S,T,I}, alm₂::DAlm{S,T,I}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number, I<:Integer}
+function Healpix.alm2cl(alm₁::DAlm{S,T}, alm₂::DAlm{S,T}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number}
     comm = (alm₁.info.comm == alm₂.info.comm) ? alm₁.info.comm : throw(DomainError(0, "Communicators must match"))
 
     local_cl = alm2cl_local(alm₁, alm₂, comp₁ = comp₁, comp₂ = comp₂)
     MPI.Allreduce(local_cl, +, comm)
 end
-Healpix.alm2cl(alm::DAlm{S,T,I}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number, I<:Integer} = Healpix.alm2cl(alm, alm, comp₁ = comp₁, comp₂ = comp₂)
+Healpix.alm2cl(alm::DAlm{S,T}; comp₁::Integer = 1, comp₂::Integer = 1) where {S<:Strategy, T<:Number} = Healpix.alm2cl(alm, alm, comp₁ = comp₁, comp₂ = comp₂)
 
 import Random
 
 """
-    synalm!(cl::Vector{T}, alm::DAlm{S,N,I}, rng::AbstractRNG; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
-    synalm!(cl::Vector{T}, alm::DAlm{S,N,I}; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
+    synalm!(cl::Vector{T}, alm::DAlm{S,N}, rng::AbstractRNG; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number}
+    synalm!(cl::Vector{T}, alm::DAlm{S,N}; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number}
 
 Generate a set of `DAlm` from a given power spectra array `cl`.
 The output is written into the `comp` column (defaulted to 1)
@@ -50,7 +50,7 @@ of the `Alm` object passed in input. If `comp` is greater than the number of
 components (columns) in `Alm` a new column is appended to the alm matrix.
 An RNG can be specified, otherwise it's defaulted to `Random.GLOBAL_RNG`.
 """
-function Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N,I}, rng::Random.AbstractRNG; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number, I<:Integer}
+function Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N}, rng::Random.AbstractRNG; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number}
     cl_size = length(cl)
     lmax = alm.info.lmax
     mval = alm.info.mval
@@ -68,5 +68,5 @@ function Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N,I}, rng::Random.AbstractRN
         end
     end
 end
-Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N,I}; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number, I<:Integer} =
+Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N}; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number} =
     Healpix.synalm!(cl, alm, Random.GLOBAL_RNG, comp=comp)

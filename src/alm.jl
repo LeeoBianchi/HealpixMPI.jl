@@ -194,8 +194,8 @@ end
 import MPI: Scatter!, Gather!, Allgather!
 
 """
-    Scatter!(in_alm::Union{Healpix.Alm{T,Array{T,1}}, Vector{Healpix.Alm{T,Array{T,1}}}}, out_d_alm::DAlm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
-    Scatter!(in_alm::Vector{Healpix.Alm{T,Array{T,1}}}, out_d_alm::DAlm{T}, out_d_pol_alm::DAlm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
+    Scatter!(in_alm::Union{Healpix.Alm{T,Array{T,1}}, AbstractArray{Healpix.Alm{T,Array{T,1}},1}}, out_d_alm::DAlm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
+    Scatter!(in_alm::AbstractArray{Healpix.Alm{T,Array{T,1}},1}, out_d_alm::DAlm{T}, out_d_pol_alm::DAlm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Scatter!(::Nothing, out_d_alm::DAlm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Scatter!(::Nothing, out_d_alm::DAlm{T}, out_d_pol_alm::DAlm{T}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Scatter!(in_alm, out_d_alm::DAlm{S,T}, comm::MPI.Comm; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
@@ -208,8 +208,8 @@ As in the standard MPI function, the `in_alm` in input can be `nothing` on non-r
 since it will be ignored anyway.
 
 To distribute a set of Alms representing a POLARIZED field there are 2 options:
-- Pass in input a `Vector{Healpix.Alm}` with only E and B components and one output `DAlm` object which will contain both.
-- Pass in input a `Vector{Healpix.Alm}` with T, E and B components and two output `DAlm` objects which will contain T and E & B respectively.
+- Pass in input a `AbstractArray{Healpix.Alm{T,Array{T,1}},1}` with only E and B components and one output `DAlm` object which will contain both.
+- Pass in input a `AbstractArray{Healpix.Alm{T,Array{T,1}},1}` with T, E and B components and two output `DAlm` objects which will contain T and E & B respectively.
 This is so that the resulting `DAlm` objects can be directly passed to the sht functions which only accept in input the intensity component for a scalar transform and two polarization components for a spinned transform.
 
 If the keyword `clear` is set to `true` it frees the memory of each task from the (potentially big) `Alm` object.
@@ -223,7 +223,7 @@ If the keyword `clear` is set to `true` it frees the memory of each task from th
 - `clear::Bool`: if true deletes the input `Alm` after having performed the "scattering".
 """
 function Scatter!(
-    in_alm::Union{Healpix.Alm{T,Array{T,1}}, Vector{Healpix.Alm{T,Array{T,1}}}},
+    in_alm::Union{Healpix.Alm{T,Array{T,1}}, AbstractArray{Healpix.Alm{T,Array{T,1}}, 1}},
     out_d_alm::DAlm{S,T};
     root::Integer = 0,
     clear::Bool = false
@@ -244,7 +244,7 @@ function Scatter!(
 end
 
 function Scatter!(
-    in_alm::Vector{Healpix.Alm{T,Array{T,1}}},
+    in_alm::AbstractArray{Healpix.Alm{T,Array{T,1}},1},
     out_d_alm::DAlm{S,T},
     out_d_pol_alm::DAlm{S,T};
     root::Integer = 0,

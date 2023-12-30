@@ -341,6 +341,7 @@ function GatherMap!(
     comp::Integer
     ) where {T <: Real}
 
+    (map.resolution.nside == d_map.info.nside)||throw(DomainError(0, "nside not matching"))
     (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
 
     comm = d_map.info.comm
@@ -357,7 +358,7 @@ function GatherMap!(
         else
             local_count = 0
             local_displ = 0
-            pixels = Float64[]{T<:Number}
+            pixels = Float64[]
         end
         counts = MPI.Gather(Int32(local_count), root, comm)
         displs = MPI.Gather(Int32(local_displ), root, comm)
@@ -433,7 +434,6 @@ function Gather!(
     clear::Bool = false
     ) where {T<:Real, S<:Strategy}
 
-    (out_map.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
     GatherMap!(in_d_map, out_map, root, comp)
 
     if clear

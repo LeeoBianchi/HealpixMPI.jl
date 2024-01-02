@@ -35,7 +35,6 @@ out_alm = deepcopy(test_alm)
 out_alm2 = deepcopy(test_alm)
 MPI.Gather!(d_alm, out_alm)
 
-
 if crank == root
     adjoint_alm2map!(test_map, out_alm2)
     Test.@test isapprox(out_alm.alm, out_alm2.alm)

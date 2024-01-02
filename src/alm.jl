@@ -380,6 +380,8 @@ end
     Gather!(in_d_alm::DAlm{S,T}, out_alm::Healpix.Alm{T,Array{T,1}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Gather!(in_d_alm::DAlm{S,T}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Gather!(in_d_alm::DAlm{S,T}, out_alm::Nothing; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
+    Gather!(in_d_alm::DAlm{S,T}, in_d_pol_alm::DAlm{S,T}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
+    Gather!(in_d_alm::DAlm{S,T}, in_d_pol_alm::DAlm{S,T}, out_alm::Nothing; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
 
 Gathers the `DAlm` objects passed on each task overwriting the `Alm`
 object passed in input on the `root` task according to the specified `strategy`
@@ -426,7 +428,7 @@ function Gather!(
     clear::Bool = false
     ) where {S<:Strategy, T<:Number}
 
-    size(in_d_alm.alm, 2) == length(out_alms)||throw(DomainError(length(out_alm), "Number of components in input and output alms not matching"))
+    (size(in_d_alm.alm, 2) == length(out_alms))||throw(DomainError(length(out_alm), "Number of components in input and output alms not matching"))
     comp = 1
     for alm in out_alms
         GatherAlm!(in_d_alm, alm, root, comp)
@@ -447,6 +449,42 @@ function Gather!(
     for comp in 1:size(in_d_alm.alm, 2)
         GatherAlm!(in_d_alm, nothing, root, comp)
     end
+    if clear
+        in_d_alm = nothing
+    end
+end
+
+function Gather!(
+    in_d_alm::DAlm{S,T},
+    in_d_pol_alm::DAlm{S,T},
+    out_alms::Vector{Healpix.Alm{T,Array{T,1}}};
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {S<:Strategy, T<:Number}
+
+    (length(out_alms) == 3)||throw(DomainError(length(out_alm), "output alm array must have 3 components."))
+
+    GatherAlm!(in_d_alm, out_alms[1], root, 1)
+    GatherAlm!(in_d_pol_alm, out_alms[2], root, 1)
+    GatherAlm!(in_d_pol_alm, out_alms[3], root, 2)
+
+    if clear
+        in_d_alm = nothing
+    end
+end
+
+function Gather!(
+    in_d_alm::DAlm{S,T},
+    in_d_pol_alm::DAlm{S,T},
+    ::Nothing;
+    root::Integer = 0,
+    clear::Bool = false
+    ) where {S<:Strategy, T<:Number}
+
+    GatherAlm!(in_d_alm, nothing, root, 1)
+    GatherAlm!(in_d_pol_alm, nothing, root, 1)
+    GatherAlm!(in_d_pol_alm, nothing, root, 2)
+
     if clear
         in_d_alm = nothing
     end

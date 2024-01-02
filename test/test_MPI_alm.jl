@@ -30,7 +30,7 @@ MPI.Scatter!(test_alm, d_alm, comm)
 
 MPI.Gather!(d_alm, res_alm)
 
-MPI.Allgather!(d_alm, res_alm_all, clear=false)
+MPI.Allgather!(d_alm, res_alm_all, clear=true)
 
 MPI.Barrier(comm)
 

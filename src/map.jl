@@ -46,7 +46,9 @@ GeomInfoMPI() =
     GeomInfoMPI(0, 0, Vector{Float64}(undef, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Float64}(undef, 0), Vector{Float64}(undef, 0), MPI.COMM_NULL)
 
 """
-    Abstract type to allow multiple dispatch.
+    abstract type AbstractDMap
+
+Abstract type to allow multiple dispatch.
 """
 abstract type AbstractDMap end
 
@@ -473,10 +475,9 @@ function Gather!(
     (in_d_map.info.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
     (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_pol_map.pixels, 2), DomainError("Not enough components to represent a polarized map"))
 
-    GatherMap!(in_d_map, out_map, root, 1)      #I
-    GatherMap!(in_d_pol_map, out_map, root, 1)  #Q
-    GatherMap!(in_d_pol_map, out_map, root, 2)  #U
-
+    GatherMap!(in_d_map, nothing, root, 1)      #I
+    GatherMap!(in_d_pol_map, nothing, root, 1)  #Q
+    GatherMap!(in_d_pol_map, nothing, root, 2)  #U
     if clear
         in_d_map = nothing #free unnecessary copies of map
     end

@@ -26,10 +26,13 @@ else
     test_alm = nothing
 end
 
-d_map_pol = DMap{RR}(zeros(0,1))
-MPI.Scatter!(test_map, d_map_pol, comm)
-d_alm = DAlm{RR}(comm)
+#some possible ways to initialize D-objects
+d_map_pol = DMap{RR}(comm)
+d_alm = DAlm{RR}()
 d_alm_pol = DAlm{RR}(comm)
+
+#distribute
+MPI.Scatter!(test_map, d_map_pol, comm)
 MPI.Scatter!(test_alm, d_alm, d_alm_pol, comm)
 
 MPI.Barrier(comm)

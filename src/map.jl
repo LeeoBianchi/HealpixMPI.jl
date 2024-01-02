@@ -75,10 +75,6 @@ mutable struct DMap{S<:Strategy, T<:Real} <: AbstractDMap
     DMap{S,T}(pixels::Matrix{T}, info::GeomInfoMPI) where {S<:Strategy, T<:Real} = new{S,T}(pixels, info)
 end
 
-#get N automatically
-DMap{S}(pixels::Matrix{T}, info::GeomInfoMPI) where {T<:Real, S<:Strategy} = DMap{S,T}(pixels, info)
-DMap{S}(pixels::Matrix{T}) where {T<:Real, S<:Strategy} = DMap{S,T}(pixels, GeomInfoMPI())
-
 #comm-only constructors
 DMap{S,T}(comm::MPI.Comm) where {T<:Real, S<:Strategy} = DMap{S,T}(Matrix{T}(undef, 0, 1), GeomInfoMPI(comm))
 DMap{S}(comm::MPI.Comm) where {S<:Strategy} = DMap{S,Float64}(comm)

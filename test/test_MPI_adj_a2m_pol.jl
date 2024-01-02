@@ -28,18 +28,21 @@ else
     test_alm3 = nothing
 end
 
-d_map = DMap{RR}(comm)
+#some possible ways to initialize the D-objects
+d_map = DMap{RR}()
 d_map_pol = DMap{RR}(comm)
+d_alm_pol = DAlm{RR}(comm)
+
+#distribute
 MPI.Scatter!(test_map, d_map, d_map_pol, comm)
-d_alm = DAlm{RR}(comm)
-MPI.Scatter!(test_alm2, d_alm, comm)
+MPI.Scatter!(test_alm2, d_alm_pol, comm)
 
 MPI.Barrier(comm)
 
 # TEST ALM2MAP DIRECTION
-adjoint_alm2map!(d_map_pol, d_alm; nthreads = 1)
+adjoint_alm2map!(d_map_pol, d_alm_pol; nthreads = 1)
 
-MPI.Gather!(d_alm, test_alm2)
+MPI.Gather!(d_alm_pol, test_alm2)
 
 if crank == root
     adjoint_alm2map!(test_map, test_alm3)

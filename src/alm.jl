@@ -80,19 +80,12 @@ mutable struct DAlm{S<:Strategy, T<:Number} <: AbstractDAlm
         new{S,T}(alm, info)
 end
 
-DAlm{S}(alm::Matrix{T}, info::AlmInfoMPI) where {S<:Strategy, T<:Number} =
-    DAlm{S,T}(alm, info)
-
-#spin-0 constructor
-DAlm{S}(alm::Vector{T}, info::AlmInfoMPI) where {S<:Strategy, T<:Number} =
-    DAlm{S,T}(reshape(alm, length(alm), 1), info)
-
 #constructor with only comm
-DAlm{S,T}(comm::MPI.Comm) where {S<:Strategy, T<:Number} = DAlm{S}(Matrix{T}(undef, 0, 0), AlmInfoMPI(comm))
+DAlm{S,T}(comm::MPI.Comm) where {S<:Strategy, T<:Number} = DAlm{S,T}(Matrix{T}(undef, 0, 1), AlmInfoMPI(comm))
 DAlm{S}(comm::MPI.Comm) where {S<:Strategy} = DAlm{S, ComplexF64}(comm)
 
 #empty constructors
-DAlm{S,T}() where {S<:Strategy, T<:Number} = DAlm{S}(Matrix{T}(undef, 0, 0), AlmInfoMPI())
+DAlm{S,T}() where {S<:Strategy, T<:Number} = DAlm{S,T}(Matrix{T}(undef, 0, 1), AlmInfoMPI())
 DAlm{S}() where {S<:Strategy} = DAlm{S, ComplexF64}()
 
 #Overload of size operator

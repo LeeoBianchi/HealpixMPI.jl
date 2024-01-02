@@ -96,7 +96,7 @@ DAlm{S,T}() where {S<:Strategy, T<:Number} = DAlm{S}(Matrix{T}(undef, 0, 0), Alm
 DAlm{S}() where {S<:Strategy} = DAlm{S, ComplexF64}()
 
 #Overload of size operator
-Base.size(alm::DAlm{S,T}) where {S,T} = size(m.alm)
+Base.size(alm::DAlm{S,T}) where {S,T} = size(alm.alm)
 
 # MPI Overloads:
 ## SCATTER

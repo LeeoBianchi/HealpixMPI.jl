@@ -29,14 +29,15 @@ else
 end
 
 d_map = DMap{RR}(comm)
-MPI.Scatter!(test_map, d_map, comm)
+d_map_pol = DMap{RR}(comm)
+MPI.Scatter!(test_map, d_map, d_map_pol, comm)
 d_alm = DAlm{RR}(comm)
 MPI.Scatter!(test_alm2, d_alm, comm)
 
 MPI.Barrier(comm)
 
 # TEST ALM2MAP DIRECTION
-adjoint_alm2map!(d_map, d_alm; nthreads = 1)
+adjoint_alm2map!(d_map_pol, d_alm; nthreads = 1)
 
 MPI.Gather!(d_alm, test_alm2)
 

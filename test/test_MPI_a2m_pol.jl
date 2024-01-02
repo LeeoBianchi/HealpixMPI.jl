@@ -18,31 +18,30 @@ if crank == root
     out_map_q = HealpixMap{Float64, RingOrder}(NSIDE)
     out_map_u = HealpixMap{Float64, RingOrder}(NSIDE)
     test_map = PolarizedHealpixMap{Float64, RingOrder}(NSIDE)
-    test_alm3 = [Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax))) for i in 1:3] #[ComplexF64(i) for i in 1:numberOfAlms(lmax)])
-    test_alm2 = test_alm3[2:3]
+    test_alm = [Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax))) for i in 1:3] #[ComplexF64(i) for i in 1:numberOfAlms(lmax)])
 else
     out_map_q = nothing
     out_map_u = nothing
     test_map = nothing
-    test_alm2 = nothing
-    test_alm3 = nothing
+    test_alm = nothing
 end
 
-d_map = DMap{RR}(comm)
-MPI.Scatter!(test_map, d_map, comm)
+d_map_pol = DMap{RR}(zeros(0,1))
+MPI.Scatter!(test_map, d_map_pol, comm)
 d_alm = DAlm{RR}(comm)
-MPI.Scatter!(test_alm2, d_alm, comm)
+d_alm_pol = DAlm{RR}(comm)
+MPI.Scatter!(test_alm, d_alm, d_alm_pol, comm)
 
 MPI.Barrier(comm)
 
 # TEST ALM2MAP DIRECTION
-alm2map!(d_alm, d_map; nthreads = 1)
+alm2map!(d_alm_pol, d_map_pol; nthreads = 1)
 
-MPI.Gather!(d_map, out_map_q, 1)
-MPI.Gather!(d_map, out_map_u, 2)
+MPI.Gather!(d_map_pol, out_map_q, 1)
+MPI.Gather!(d_map_pol, out_map_u, 2)
 
 if crank == root
     #Test.@test isapprox(out_map.i.pixels, alm2map(test_alm, NSIDE).i.pixels)
-    Test.@test isapprox(out_map_q.pixels, alm2map(test_alm3, NSIDE).q.pixels) #test against Healpix transform
-    Test.@test isapprox(out_map_u.pixels, alm2map(test_alm3, NSIDE).u.pixels) #test against Healpix transform
+    Test.@test isapprox(out_map_q.pixels, alm2map(test_alm, NSIDE).q.pixels) #test against Healpix transform
+    Test.@test isapprox(out_map_u.pixels, alm2map(test_alm, NSIDE).u.pixels) #test against Healpix transform
 end

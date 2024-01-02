@@ -47,18 +47,15 @@ import Random
 Generate a set of `DAlm` from a given power spectra array `cl`.
 The output is written into the `comp` column (defaulted to 1)
 of the `Alm` object passed in input. If `comp` is greater than the number of
-components (columns) in `Alm` a new column is appended to the alm matrix.
+components (columns) in `Alm` an error will be thrown.
 An RNG can be specified, otherwise it's defaulted to `Random.GLOBAL_RNG`.
 """
 function Healpix.synalm!(cl::Vector{T}, alm::DAlm{S,N}, rng::Random.AbstractRNG; comp::Integer = 1) where {S<:Strategy, T<:Real, N<:Number}
     cl_size = length(cl)
     lmax = alm.info.lmax
     mval = alm.info.mval
-    (cl_size - 1 >= lmax) || throw(DomainError(cl_size, "not enough C_l's to generate Alm"))
-    if comp > size(alm.alm, 2)      #if the desired comp is out of bounds
-        cat(alm.alm, Array{T}(undef, length(alm.alm), 1), dims = 2)
-        comp = size(alm.alm, 2) + 1 #we append a column next to the last one
-    end
+    (cl_size - 1 >= lmax) || throw(DomainError(cl_size, "not enough C_l's to generate Alm"))#cl is out of bounds
+    (comp <= size(alm)[2]) || throw(DomainError(comp, "DAlm component out of bounds"))       #desired comp is out of bounds
     i = 1
     for m in mval
         for l = m:lmax

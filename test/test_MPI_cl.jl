@@ -24,7 +24,7 @@ MPI.Barrier(comm)
 @test isapprox(alm2cl(d_alm), Healpix.alm2cl(test_alm))
 
 cl = Vector{Float64}(0:6)
-synalm!(cl, d_alm)
+synalm!(cl, d_alm, comp = 1)
 
 if crank == root
     #task 0 has m = 0

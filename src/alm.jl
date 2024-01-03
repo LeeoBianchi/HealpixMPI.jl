@@ -378,9 +378,9 @@ end
 """
     Gather!(in_d_alm::DAlm{S,T}, out_alm::Union{Healpix.Alm{T,Array{T,1}}, Nothing}, comp::Integer; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Gather!(in_d_alm::DAlm{S,T}, out_alm::Healpix.Alm{T,Array{T,1}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
-    Gather!(in_d_alm::DAlm{S,T}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
+    Gather!(in_d_alm::DAlm{S,T}, out_alm::AbstractArray{Healpix.Alm{T,Array{T,1}},1}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Gather!(in_d_alm::DAlm{S,T}, out_alm::Nothing; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
-    Gather!(in_d_alm::DAlm{S,T}, in_d_pol_alm::DAlm{S,T}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
+    Gather!(in_d_alm::DAlm{S,T}, in_d_pol_alm::DAlm{S,T}, out_alm::AbstractArray{Healpix.Alm{T,Array{T,1}},1}; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
     Gather!(in_d_alm::DAlm{S,T}, in_d_pol_alm::DAlm{S,T}, out_alm::Nothing; root::Integer = 0, clear::Bool = false) where {S<:Strategy, T<:Number}
 
 Gathers the `DAlm` objects passed on each task overwriting the `Alm`
@@ -390,6 +390,10 @@ to "scatter" the a_lm.
 
 As in the standard MPI function, the `out_alm` can be `nothing` on non-root tasks,
 since it will be ignored anyway.
+
+Note: for a polarized field, if two input `DAlm` objects are passed, they are expected
+to contain the T and E & B components respectively and the output will be an array of
+three `Alm` objects which can be passed to `Healpix.jl` functions directly.
 
 If the keyword `clear` is set to `true` it frees the memory of each task from
 the (potentially bulky) `DAlm` object.
@@ -423,7 +427,7 @@ Gather!(in_d_alm::DAlm{S,T}, out_alm::Healpix.Alm{T,Array{T,1}}; root::Integer =
 #allows non-root tasks to pass nothing as output
 function Gather!(
     in_d_alm::DAlm{S,T},
-    out_alms::Vector{Healpix.Alm{T,Array{T,1}}};
+    out_alms::AbstractArray{Healpix.Alm{T,Array{T,1}},1};
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number}
@@ -457,20 +461,15 @@ end
 function Gather!(
     in_d_alm::DAlm{S,T},
     in_d_pol_alm::DAlm{S,T},
-    out_alms::Vector{Healpix.Alm{T,Array{T,1}}};
+    out_alms::AbstractArray{Healpix.Alm{T,Array{T,1}}, 1};
     root::Integer = 0,
     clear::Bool = false
     ) where {S<:Strategy, T<:Number}
 
     (length(out_alms) == 3)||throw(DomainError(length(out_alm), "output alm array must have 3 components."))
 
-    GatherAlm!(in_d_alm, out_alms[1], root, 1)
-    GatherAlm!(in_d_pol_alm, out_alms[2], root, 1)
-    GatherAlm!(in_d_pol_alm, out_alms[3], root, 2)
-
-    if clear
-        in_d_alm = nothing
-    end
+    Gather!(in_d_alm, out_alms[1], root = root, clear = clear)
+    Gather!(in_d_pol_alm, view(out_alms, 2:3), root = root, clear = clear)
 end
 
 function Gather!(
@@ -481,13 +480,8 @@ function Gather!(
     clear::Bool = false
     ) where {S<:Strategy, T<:Number}
 
-    GatherAlm!(in_d_alm, nothing, root, 1)
-    GatherAlm!(in_d_pol_alm, nothing, root, 1)
-    GatherAlm!(in_d_pol_alm, nothing, root, 2)
-
-    if clear
-        in_d_alm = nothing
-    end
+    Gather!(in_d_alm, nothing, root = root, clear = clear)
+    Gather!(in_d_pol_alm, nothing, root = root, clear = clear)
 end
 
 ## Allgather
@@ -529,8 +523,9 @@ end
 
 """
     Allgather!(in_d_alm::DAlm{S,T}, out_alm::Healpix.Alm{T,Array{T,1}}, comp::Integer; clear::Bool = false) where {S<:Strategy, T<:Number}
-    Allgather!(in_d_alm::DAlm{S,T}, out_alm::Vector{Healpix.Alm{T,Array{T,1}}}, comp::Integer; clear::Bool = false) where {S<:Strategy, T<:Number}
     Allgather!(in_d_alm::DAlm{S,T}, out_alm::Healpix.Alm{T,Array{T,1}}; clear::Bool = false) where {S<:Strategy, T<:Number}
+    Allgather!(in_d_alm::DAlm{S,T}, out_alm::AbstractArray{Healpix.Alm{T,Array{T,1}},1}; clear::Bool = false) where {S<:Strategy, T<:Number}
+    Allgather!(in_d_alm::DAlm{S,T}, in_d_pol_alm::DAlm{S,T}, out_alm::AbstractArray{Healpix.Alm{T,Array{T,1}},1}; clear::Bool = false) where {S<:Strategy, T<:Number}
 
 Gathers the `DAlm` objects passed on each task overwriting the `Alm`
 object passed in input on the `root` task according to the specified `strategy`
@@ -570,8 +565,7 @@ Allgather!(in_d_alm::DAlm{S,T}, out_alm::Healpix.Alm{T,Array{T,1}}; clear::Bool 
 
 function Allgather!(
     in_d_alm::DAlm{S,T},
-    out_alms::Vector{Healpix.Alm{T,Array{T,1}}},
-    comp::Integer;
+    out_alms::AbstractArray{Healpix.Alm{T,Array{T,1}},1};
     clear::Bool = false
     ) where {S<:Strategy, T<:Number}
 
@@ -584,6 +578,19 @@ function Allgather!(
     if clear
         in_d_map = nothing
     end
+end
+
+function Allgather!(
+    in_d_alm::DAlm{S,T},
+    in_d_pol_alm::DAlm{S,T},
+    out_alms::AbstractArray{Healpix.Alm{T,Array{T,1}},1};
+    clear::Bool = false
+    ) where {S<:Strategy, T<:Number}
+
+    (length(out_alms) == 3)||throw(DomainError(length(out_alm), "output alm array must have 3 components."))
+
+    Allgather!(in_d_alm, out_alms[1], clear = clear)
+    Allgather!(in_d_pol_alm, view(out_alms, 2:3), clear = clear)
 end
 #########################################################################
 """

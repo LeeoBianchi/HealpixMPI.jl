@@ -7,15 +7,15 @@ using LinearAlgebra
 using Healpix
 
 makedocs(
-         sitename = "HealpixMPI.jl",
-         modules  = [HealpixMPI],
-         pages=[
-                "Introduction" => "index.md"
-                "Distributed Classes" => "distribute.md"
-                "Spherical Harmonics" => "sht.md"
-                "Miscellanea" => "misc.md"
-               ])
-
+    sitename = "HealpixMPI.jl",
+    modules  = [HealpixMPI],
+    pages=[
+        "Introduction" => "index.md"
+        "Distributed Classes" => "distribute.md"
+        "Spherical Harmonics" => "sht.md"
+        "Miscellanea" => "misc.md"
+       ],
+    checkdocs = :exports)
 deploydocs(
     repo="github.com/LeeoBianchi/HealpixMPI.jl.git",
 )

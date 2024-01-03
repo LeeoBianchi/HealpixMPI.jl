@@ -21,6 +21,7 @@ Base.:-
 Base.:*
 Base.:/
 LinearAlgebra.dot
+≃
 ```
 
 ## Power spectrum

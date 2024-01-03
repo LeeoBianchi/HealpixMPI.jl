@@ -142,7 +142,7 @@ function get_rindexes_tot_RR(eq_index::Integer, c_size::Integer)
 end
 
 """
-    Internal function implementing a "Round Robin" strategy (note the type rquirement on d_map).
+Internal function implementing a "Round Robin" strategy (note the type rquirement on d_map).
 
 Here the input map is supposed to be on every task as a copy.
 The input map object is broadcasted by `MPI.Scatter!`.
@@ -330,7 +330,7 @@ end
 
 #######################################################################
 """
-    Internal function implementing a "Round Robin" strategy.
+Internal function implementing a "Round Robin" strategy.
 
 """
 function GatherMap!(

@@ -25,7 +25,7 @@ GeomInfoMPI
 AlmInfoMPI
 ```
 
-## Initializing a Distributed type
+## Initializing a distributed type
 
 The recommended way to construct a local subset of a map or harmonic coefficients, is to start with an instance of `HealpixMap` (in `RingOrder`) or `Alm` on the root task, and call one of the apposite overloads of the standard `MPI.Scatter!` function, provided by HealpixMPI.jl.
 Such function would in fact save the user the job of constructing all the required ancillary information describing the data subset, doing so through efficient and tested methods.
@@ -70,6 +70,11 @@ Similarly, for the spherical harmonic coefficients, task $i$ would hold all coef
 
 The strategy is intrinsically specified in a `DMap` or `DAlm` instance through an abstract type (e.g. `RR`), inherited from a super-type `Strategy`; in the same way as the pixel ordering is specified in a `HealpixMap` in Healpix.jl.
 
+```@docs
+Strategy
+RR
+```
+
 This kind of solution allows for two great features:
 
  - An efficient and fast multiple-dispatch, allowing a function to recognize the distribution strategy used on data structure without the usage of any `if` statement.
@@ -78,4 +83,21 @@ This kind of solution allows for two great features:
 
 ```julia
 abstract type NewStrat<:Strategy end
+```
+
+## Map-specific functions
+
+```@docs
+get_nrings_RR
+get_rindexes_RR
+get_rindexes_tot_RR
+```
+
+## Alm-specific functions
+
+```@docs
+get_nm_RR
+get_mval_RR
+get_m_tasks_RR
+make_mstart_complex
 ```

@@ -88,8 +88,9 @@ DAlm{S}(comm::MPI.Comm) where {S<:Strategy} = DAlm{S, ComplexF64}(comm)
 DAlm{S,T}() where {S<:Strategy, T<:Number} = DAlm{S,T}(Matrix{T}(undef, 0, 1), AlmInfoMPI())
 DAlm{S}() where {S<:Strategy} = DAlm{S, ComplexF64}()
 
-#Overload of size operator
-Base.size(alm::DAlm{S,T}) where {S,T} = size(alm.alm)
+#Overload of interface operators
+Base.size(alm::DAlm{S,T}) where {S<:Strategy,T} = size(alm.alm)
+Base.parent(alm::DAlm{S,T}) where {S<:Strategy,T} = alm.alm
 
 # MPI Overloads:
 ## SCATTER

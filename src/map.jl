@@ -87,6 +87,7 @@ DMap{S}() where {S<:Strategy} = DMap{S,Float64}()
 
 #Overload of size operator
 Base.size(m::DMap{S,T}) where {S,T} = size(m.pixels)
+Base.parent(m::DMap{S,T}) where {S<:Strategy,T} = m.pixels
 
 """
     get_nrings_RR(eq_idx::Integer, task_rank::Integer, c_size::Integer)
@@ -450,17 +451,9 @@ function Gather!(
     root::Integer = 0,
     clear::Bool = false
     ) where {T<:Real, S<:Strategy}
-
-    (out_map.i.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (out_map.i.resolution.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_pol_map.pixels, 2), DomainError("Not enough components to represent a polarized map"))
-
-    GatherMap!(in_d_map, out_map.i, root, 1)      #I
-    GatherMap!(in_d_pol_map, out_map.q, root, 1)  #Q
-    GatherMap!(in_d_pol_map, out_map.u, root, 2)  #U
-    if clear
-        in_d_map = nothing #free unnecessary copies of map
-    end
+    Gather!(in_d_map, out_map.i, 1, root = root, clear = clear)      #I
+    Gather!(in_d_pol_map, out_map.q, 1, root = root, clear = clear)  #Q
+    Gather!(in_d_pol_map, out_map.u, 2, root = root, clear = clear)  #U
 end
 
 #non-root tasks where it can be nothing
@@ -471,16 +464,9 @@ function Gather!(
     root::Integer = 0,
     clear::Bool = false
     ) where {T<:Real, S<:Strategy}
-
-    (in_d_map.info.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_pol_map.pixels, 2), DomainError("Not enough components to represent a polarized map"))
-
-    GatherMap!(in_d_map, nothing, root, 1)      #I
-    GatherMap!(in_d_pol_map, nothing, root, 1)  #Q
-    GatherMap!(in_d_pol_map, nothing, root, 2)  #U
-    if clear
-        in_d_map = nothing #free unnecessary copies of map
-    end
+    Gather!(in_d_map, nothing, 1, root = root, clear = clear)      #I
+    Gather!(in_d_pol_map, nothing, 1, root = root, clear = clear)  #Q
+    Gather!(in_d_pol_map, nothing, 2, root = root, clear = clear)  #U
 end
 
 ##########################################################
@@ -493,6 +479,7 @@ function AllgatherMap!(
     comp::Integer
     ) where {T<:Real}
 
+    (size(d_map.pixels, 2) >= comp) || throw(DomainError(4, "not enough components in DMap"))
     comm = d_map.info.comm
     #each task can have at most root_nring + 1
     res = map.resolution
@@ -565,18 +552,9 @@ function Allgather!(
     out_map::Healpix.PolarizedHealpixMap{T,Healpix.RingOrder};
     clear::Bool = false
     ) where  {T<:Real, S<:Strategy}
-
-    (out_map.i.resolution.nside == in_d_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (out_map.i.resolution.nside == in_d_pol_map.info.nside)||throw(DomainError(0, "nside not matching"))
-    (size(in_d_pol_map.pixels, 2) >= 2) || throw(size(in_d_map.pixels, 2), DomainError("Not enough comps in d_map.pixels to represent a polarized map"))
-
-    AllgatherMap!(in_d_map, out_map.i, 1)       #I
-    AllgatherMap!(in_d_pol_map, out_map.q, 1)   #Q
-    AllgatherMap!(in_d_pol_map, out_map.u, 2)   #U
-
-    if clear
-        in_d_map = nothing
-    end
+    Allgather!(in_d_map, out_map.i, 1, clear = clear)       #I
+    Allgather!(in_d_pol_map, out_map.q, 1, clear = clear)   #Q
+    Allgather!(in_d_pol_map, out_map.u, 2, clear = clear)   #U
 end
 
 """

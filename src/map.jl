@@ -119,6 +119,7 @@ function get_rindexes_RR(local_nrings::Integer, eq_idx::Integer, t_rank::Integer
     end
     rings
 end
+
 function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)::Vector{Int}
     eq_idx = Healpix.getEquatorIdx(nside)
     nrings = get_nrings_RR(eq_idx, t_rank, c_size)
@@ -126,9 +127,9 @@ function get_rindexes_RR(nside::Integer, t_rank::Integer, c_size::Integer)::Vect
 end
 
 """
-    get_rindexes_tot_RR(eq_idx::Integer, c_size::Integer)
+    get_rindexes_tot_RR(eq_index::Integer, c_size::Integer)
 
-Return array of ring indexes ordered by task first and RR within each task
+Return array of ring indexes ordered by task first and RR within each task.
 """
 function get_rindexes_tot_RR(eq_index::Integer, c_size::Integer)
     filled = 1 #we keep track of how much of rindexes we already have filled

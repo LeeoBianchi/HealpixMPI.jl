@@ -10,7 +10,9 @@ As mentioned in the introduction, HealpixMPI has the main purpose of providing a
 This is made possible by the implementation of two data types: [`DMap`](@ref) and [`DAlm`](@ref), mirroring [`HealpixMap`](https://ziotom78.github.io/Healpix.jl/stable/mapfunc/#Healpix.HealpixMap) and [`Alm`](https://ziotom78.github.io/Healpix.jl/stable/alm/#Healpix.Alm) types of Healpix.jl respectively, and containing a well-defined subset of a map or harmonic coefficients, to be constructed on each MPI task.
 
 ```@docs
+AbstractDMap
 DMap
+AbstractDAlm
 DAlm
 ```
 

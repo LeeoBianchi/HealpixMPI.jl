@@ -35,7 +35,7 @@ import MPI: Scatter
     - `comm::MPI.Comm`: MPI communicator to use.
 
     # Keywords:
-    - `strategy::Symbol`: Strategy to be used, by default `:RR` for "Round Robin".
+    - `strategy::Type`: Strategy to be used, by default `:RR` for "Round Robin".
     - `root::Integer`: rank of the task to be considered as "root", it is 0 by default.
 """
 function Scatter(

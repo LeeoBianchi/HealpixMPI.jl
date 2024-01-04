@@ -14,16 +14,16 @@ In particular, its C++ functions are exploited for the computation of Legandre c
 HealpixMPI.jl implements only the two exact spherical harmonic operators [`alm2map!`](@ref) (synthesis) and [`adjoint_alm2map!`](@ref) (adjoint synthesis), leaving to the user the task to implement the two corresponding **inverse** approximate operators, which can be done through many different approaches, from pixel and ring weights to conjugate gradient solver.
 Both [`alm2map!`](@ref) and [`adjoint_alm2map!`](@ref) are implemented as overloads of the Healpix.jl's functions.
 
-### From Alm to Map: synthesis operator
+## From Alm to Map: synthesis operator
 
-The synthesis SHT ([`alm2map`](@ref)) is used to compute a map from a set of $a_{\ell m}$ coefficients.
+The synthesis SHT ([`alm2map!`](@ref)) is used to compute a map from a set of $a_{\ell m}$ coefficients.
 It is generally represented by the matrix operator $\mathrm{Y}$ which is defined through an exact summation as $$f(\theta, \phi) = \mathrm{Y} \, a_{\ell m} \quad \text{where} \quad f(\theta, \phi) = \sum_{\ell=0}^{\infty} \sum_{m=-\ell}^{\ell} a_{\ell m} Y_{\ell m} (\theta, \phi).$$
 
 ```@docs
 alm2map!
 ```
 
-### From Map to Alm: adjoint synthesis operator
+## From Map to Alm: adjoint synthesis operator
 
 The adjoint of the synthesis operator brings us from the map space to the harmonic space, as it is represented by the transpose $\mathrm{Y}^{\mathrm{T}}$.
 Which is defined through:

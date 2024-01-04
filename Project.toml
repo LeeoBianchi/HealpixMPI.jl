@@ -1,7 +1,7 @@
 name = "HealpixMPI"
 uuid = "13ef2956-0416-496b-acf0-802ddd2ca2dc"
 authors = ["LeeoBianchi <leobianchi98@gmail.com>"]
-version = "0.1.0"
+version = "1.0.0"
 
 [deps]
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"

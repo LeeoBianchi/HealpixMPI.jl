@@ -34,7 +34,11 @@ the sphere, which can be used to decompose and analyze any spherically-symmetric
 
 Moreover, the SHTs often constitute the computationally heaviest step of the scientific software they are part of.
 For this reason, many efforts have been spent over the last decades to obtain the fastest and most efficient 
-possible SHTs implementations.
+possible SHTs implementations. 
+In such setting, parallel computing naturally comes into play, especially for heavy software to be run on high performance 
+computing (HPC) large clusters.
+Employing a high number of computing cores in the most efficient way in order to perform fast spherical harmonic transform
+operations is the main goal of the Julia package `HealpixMPI.jl`, presented in this paper.
 
 **brief description of the main concept: -distribution of objects, - hybrid parallelization**
 
@@ -54,8 +58,7 @@ Not surprisingly, this is also the research field wherein `HealpixMPI.jl` was bo
 As mentioned before, SHTs are often the bottleneck of CMB analysis pipelines, and as the resolution
 of the most recent observational experiments significantly increases, efficient algorithms alone
 are no longer enough to perform SHTs in acceptable run times and a parallel approach must be implemented.
-Employing a high number of computing cores in the most efficient way in order to perform fast spherical harmonic transform
-operations is the main goal of the Julia package `HealpixMPI.jl`, presented in this paper.
+
 
 As mentioned before, an efficient parallel implementation of the spherical harmonic 
 transforms is crucial in the CMB research field for obtaining feasible run times 

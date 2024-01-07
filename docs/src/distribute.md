@@ -10,7 +10,9 @@ As mentioned in the introduction, HealpixMPI has the main purpose of providing a
 This is made possible by the implementation of two data types: [`DMap`](@ref) and [`DAlm`](@ref), mirroring [`HealpixMap`](https://ziotom78.github.io/Healpix.jl/stable/mapfunc/#Healpix.HealpixMap) and [`Alm`](https://ziotom78.github.io/Healpix.jl/stable/alm/#Healpix.Alm) types of Healpix.jl respectively, and containing a well-defined subset of a map or harmonic coefficients, to be constructed on each MPI task.
 
 ```@docs
+AbstractDMap
 DMap
+AbstractDAlm
 DAlm
 ```
 
@@ -25,7 +27,7 @@ GeomInfoMPI
 AlmInfoMPI
 ```
 
-## Initializing a Distributed type
+## Initializing a distributed type
 
 The recommended way to construct a local subset of a map or harmonic coefficients, is to start with an instance of `HealpixMap` (in `RingOrder`) or `Alm` on the root task, and call one of the apposite overloads of the standard `MPI.Scatter!` function, provided by HealpixMPI.jl.
 Such function would in fact save the user the job of constructing all the required ancillary information describing the data subset, doing so through efficient and tested methods.
@@ -38,7 +40,7 @@ While distributing a set of harmonic coefficients means that each MPI task will 
 Each MPI task will then host a `DMap` object containing only the pixels composing some specified rings of the entire `HealpixMap`.
 Note that, for spherical harmonic transforms efficiency, it is recommended to assign pairs of rings with same latitude (i.e. symmetric w.r.t. the equator) to the same task, in order to preserve the geometric symmetry of the map.
 
-The following example shows the standard way to initialize a `DAlm` object through a round robin strategy (see the paragraph [`Distributing Strategy`](https://leeobianchi.github.io/HealpixMPI.jl/dev/distribute/#Distributing-Strategy) for more details about this).
+The following example shows the standard way to initialize a `DAlm` object through a round robin strategy (see the paragraph `Distributing Strategy` for more details about this). #[`Distributing Strategy`](https://leeobianchi.github.io/HealpixMPI.jl/dev/distribute/#Distributing-Strategy)
 
 ```julia
 using HealpixMPI
@@ -70,6 +72,11 @@ Similarly, for the spherical harmonic coefficients, task $i$ would hold all coef
 
 The strategy is intrinsically specified in a `DMap` or `DAlm` instance through an abstract type (e.g. `RR`), inherited from a super-type `Strategy`; in the same way as the pixel ordering is specified in a `HealpixMap` in Healpix.jl.
 
+```@docs
+Strategy
+RR
+```
+
 This kind of solution allows for two great features:
 
  - An efficient and fast multiple-dispatch, allowing a function to recognize the distribution strategy used on data structure without the usage of any `if` statement.
@@ -78,4 +85,21 @@ This kind of solution allows for two great features:
 
 ```julia
 abstract type NewStrat<:Strategy end
+```
+
+## Map-specific functions
+
+```@docs
+get_nrings_RR
+get_rindexes_RR
+get_rindexes_tot_RR
+```
+
+## Alm-specific functions
+
+```@docs
+get_nm_RR
+get_mval_RR
+get_m_tasks_RR
+make_mstart_complex
 ```

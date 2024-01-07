@@ -23,22 +23,15 @@ bibliography: paper.bib
 
 # Summary
 
-The Julia package `HealpixMPI.jl` constitutes a natural extension of
-`Healpix.jl` [TOCITE], providing an efficient parallelization of its sperical harmonic
-transform (SHTs, for short) functionalities.
-`Healpix.jl`, in turn, constitutes a Julia-only implementation of the HEALPix [TOCITE]
-library, which provides one of the most used tasselation schemes of the two-sphere along with
-a series of SHTs-related functions.
-In brief, a spherical harmonic transform can be seen as a sort of two-dimensional Fourier transform defined on
-the sphere, which can be used to decompose and analyze any spherically-symmetric field, reaching a wide variety of applications.
+The Julia package `HealpixMPI.jl` constitutes a natural extension of `Healpix.jl` [TOCITE], providing an efficient parallelization of its sperical harmonic transform (SHTs, for short) functionalities.
+`Healpix.jl`, in turn, constitutes a Julia-only implementation of the HEALPix [TOCITE] library, which provides one of the most used tasselation schemes of the two-sphere along with a series of SHTs-related functions.
+In brief, a spherical harmonic transform can be seen as a sort of two-dimensional Fourier transform defined on the sphere, which can be used to decompose and analyze any spherically-symmetric field, becoming an essential tool for solving a wide variety of problems.
 
-Moreover, the SHTs often constitute the computationally heaviest step of the scientific software they are part of.
-For this reason, many efforts have been spent over the last decades to obtain the fastest and most efficient
-possible SHTs implementations.
-In such setting, parallel computing naturally comes into play, especially for heavy software to be run on high performance
-computing (HPC) large clusters.
-The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores
-in order to perform fast spherical harmonic transform.
+However, the SHTs are in general computationally expensive operations and thus they often constitute the *bottleneck* of the scientific software they are part of.
+For this reason, many efforts have been spent over the last couple of decades to obtain the fastest and most efficient possible SHTs implementations.
+In such setting, parallel computing naturally comes into play, especially for heavy software to be run on high performance computing (HPC) large clusters.
+The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
+More specifically, as described later, `HealpixMPI.jl` focuses on the hybrid 
 
 **brief description of the main concept: -distribution of objects, - hybrid parallelization**
 

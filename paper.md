@@ -9,12 +9,11 @@ tags:
 authors:
   - name: Leo A. Bianchi
     equal-contrib: true
-    #maybe add orcid
-    affiliation: 1 # (Multiple affiliations must be quoted)
+    affiliation: "1, 2" # (Multiple affiliations must be quoted)
 affiliations:
  - name: Dipartimento di Fisica Aldo Pontremoli, Università degli Studi di Milano, Milan, Italy
    index: 1
- - name: Independent Researcher, Italy
+ - name: Institute of Theoretical Astrophysics, University of Oslo, Blindern, Oslo, Norway
    index: 2
 date: 22 November 2023
 bibliography: paper.bib
@@ -43,7 +42,7 @@ On the other hand, from a computational point of view, CMB field measurements ne
 This is exactly the goal HEALPix was targeting, when more than two decades ago was released, quickly becoming the standard library for CMB numerical analysis.
 
 Not surprisingly, the cosmic microwave background is also the research context wherein `HealpixMPI.jl` concept was born.
-As mentioned before, SHTs are often the bottleneck of CMB data analysis pipelines, as the one implemented by Cosmoglobe[TOCITE] collaboration, based on the software Commander , which I contributed to with the work that led to the release of `HealpixMPI.jl`.
+As mentioned before, SHTs are often the bottleneck of CMB data analysis pipelines, as the one implemented by Cosmoglobe [@Watts_2023] collaboration, based on the software Commander [@Eriksen_2004], which I contributed to with the work that led to the release of `HealpixMPI.jl`.
 
 Given the significantly increasing amount of data produced by the most recent observational experiments, efficient algorithms alone are no longer enough to perform SHTs within acceptable run times and a parallel approach must be implemented.
 Moreover, in the specific case of Cosmoglobe and Commander, the goal for the next years is to be able to run a full pipeline, and thus the SHTs performed in it, on a large HPC cluster *efficiently* employing at least $10^4$ cores.
@@ -52,7 +51,7 @@ In order to achieve this, an implementation of HEALPix allowing to perform spher
 
 # The latest SHT engine: DUCC
 
-As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp`[TOCITE]. However, since a couple of years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` (Distinctively Useful Code Collection).
+As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp`[@libsharp]. However, since a couple of years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` (Distinctively Useful Code Collection).
 
 The timing between the development of `DUCC` and `HealpixMPI.jl` was quite lucky, as I became aware of the rising idea of a Julia interface for DUCC when I was about to start building a package out of my code.
 This gave me the chance to swap the SHTs dependencies of `HealpixMPI.jl` from `libsharp`,
@@ -60,31 +59,18 @@ as initially planned, to `DUCC`; as well as helping Martin Reinecke, `DUCC`'s cr
 This allowed `HealpixMPI.jl` to be already up-to-date with the state of the art of spherical harmonics upon it's first release.
 In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `libsharp`, but has been significantly enhanced with the latest algorithmical improvements and the standard C++ multithreading implementation for *shared-memory* parallelization of the spherical harmonic transforms.
 
-## Hybrid parallelization of the SHT
+# Hybrid parallelization of the SHT
 
-In order to run spherical harmonic transforsm on a large number `HealpixMPI.jl` was conceived to provides a hybrid parallelization of the computationally heaviest functionalities of `Healpix.jl`, through a simultaneous shared-memory (multithreading) and distributed-memory (MPI) parallel implementation.
-For maximum efficiency, `HealpixMPI.jl` focuses on the
-
-## Distributed data types
+In order to run spherical harmonic transforsm on a large number of cores, `HealpixMPI.jl` provides a hybrid parallel desing, through a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively.
 
 
 # Usage Example
 
 
 
-# Citations
-
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-# Figures
-
 
 # Acknowledgements
 
-I acknowledge crucial contributions from Maurizio Tomasi, main developer of `Healpix.jl` and supervisor of
-my master thesis project at the University of Milan at the time of `HealpixMPI.jl`'s concept being born,
-Martin Reinecke, main developer of DUCC[CITELINK], Hans Kristian Eriksen, the main developer of Commander,
-Sigurd Naess and all the other members of Cosmoglobe collaboration.
+I acknowledge crucial contributions from Maurizio Tomasi, my supervisor at the University of Milan at the time of `HealpixMPI.jl`'s concept being born, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the other members of Cosmoglobe collaboration.
 
 # References

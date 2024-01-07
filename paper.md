@@ -14,7 +14,7 @@ authors:
 affiliations:
  - name: Dipartimento di Fisica Aldo Pontremoli, Università degli Studi di Milano, Milan, Italy
    index: 1
- - name: Independent Researcher, Country
+ - name: Independent Researcher, Italy
    index: 2
 date: 22 November 2023
 bibliography: paper.bib
@@ -23,50 +23,52 @@ bibliography: paper.bib
 
 # Summary
 
-The Julia package `HealpixMPI.jl` constitutes a natural extension of `Healpix.jl` [TOCITE], providing an efficient parallelization of its sperical harmonic transform (SHTs, for short) functionalities.
-`Healpix.jl`, in turn, constitutes a Julia-only implementation of the HEALPix [TOCITE] library, which provides one of the most used tasselation schemes of the two-sphere along with a series of SHTs-related functions.
+The Julia package `HealpixMPI.jl` constitutes a natural extension of `Healpix.jl`[@Healpix_jl], providing an efficient parallelization of its sperical harmonic transform (SHTs, for short) functionalities.
+`Healpix.jl`, in turn, constitutes a Julia-only implementation of the HEALPix[@HEALPix] library, which provides one of the most used tasselation schemes of the two-sphere along with a series of SHTs-related functions.
 In brief, a spherical harmonic transform can be seen as a sort of two-dimensional Fourier transform defined on the sphere, which can be used to decompose and analyze any spherically-symmetric field, becoming an essential tool for solving a wide variety of problems.
 
 However, the SHTs are in general computationally expensive operations and thus they often constitute the *bottleneck* of the scientific software they are part of.
 For this reason, many efforts have been spent over the last couple of decades to obtain the fastest and most efficient possible SHTs implementations.
 In such setting, parallel computing naturally comes into play, especially for heavy software to be run on high performance computing (HPC) large clusters.
 The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
-More specifically, as described later, `HealpixMPI.jl` focuses on the hybrid 
+The principal features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
 
-**brief description of the main concept: -distribution of objects, - hybrid parallelization**
-
+![Healpix Logo \label{fig:logo}](docs/src/assets/logo.png){width=40%}
 
 # Statement of need
 
-Among a variety of applications, spherical harmonic transforms are particularly relevant for
-the analysis of cosmic microwave background (CMB) radiation, which is one of the most active research field of recent cosmology.
-CMB radiation is in fact very conveniently described as a temperature (and polarization) field on the sky sphere,
-making spherical harmonics the most natural mathematical tool to analyze its measured signal.
-Of course, from a computational point of view, CMB field measurements need to be discretized, requiring
-a mathematically consistent pixelization of the sphere, and the functions defined on it.
-This is exactly the goal HEALPix was aiming for, when more than two decades ago was released
-quickly becoming the standard library for CMB numerical analysis.
+Among a variety of applications, spherical harmonic transforms are particularly relevant for the analysis of cosmic microwave background (CMB) radiation, which is one of the most active research field of recent cosmology.
+CMB radiation is in fact very conveniently described as a temperature (and polarization) field on the sky sphere, making spherical harmonics the most natural mathematical tool to analyze its measured signal.
+On the other hand, from a computational point of view, CMB field measurements need of course to be discretized, requiring a mathematically consistent pixelization of the sphere, and the functions defined on it.
+This is exactly the goal HEALPix was targeting, when more than two decades ago was released, quickly becoming the standard library for CMB numerical analysis.
 
-Not surprisingly, the CMB is also the research field wherein `HealpixMPI.jl` was born.
-As mentioned before, SHTs are often the bottleneck of CMB data analysis pipelines, e.g. the one
-implemented by the Cosmoglobe[TOCITE] collaboration through the software Commander3[TOCITE].
-Given the significantly increasing amount of data produced by the most recent observational experiments, efficient algorithms alone
-are no longer enough to perform SHTs within acceptable run times and a parallel approach must be implemented.
+Not surprisingly, the cosmic microwave background is also the research context wherein `HealpixMPI.jl` concept was born.
+As mentioned before, SHTs are often the bottleneck of CMB data analysis pipelines, as the one implemented by Cosmoglobe[TOCITE] collaboration, based on the software Commander , which I contributed to with the work that led to the release of `HealpixMPI.jl`.
 
-`HealpixMPI.jl` tackles the problem by providing a hybrid parallelization of the
-computationally heaviest functionalities of `Healpix.jl`, through a simultaneous
-shared-memory (multithreading) and distributed-memory (MPI) parallel implementation.
+Given the significantly increasing amount of data produced by the most recent observational experiments, efficient algorithms alone are no longer enough to perform SHTs within acceptable run times and a parallel approach must be implemented.
+Moreover, in the specific case of Cosmoglobe and Commander, the goal for the next years is to be able to run a full pipeline, and thus the SHTs performed in it, on a large HPC cluster *efficiently* employing at least $10^4$ cores.
 
-# Main Features
+In order to achieve this, an implementation of HEALPix allowing to perform spherical harmonics on a high number of cores, beyond the machine-size limitations, is unavoidably needed.
 
-## The latest SHT engine: DUCC
+# The latest SHT engine: DUCC
+
+As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp`[TOCITE]. However, since a couple of years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` (Distinctively Useful Code Collection).
+
+The timing between the development of `DUCC` and `HealpixMPI.jl` was quite lucky, as I became aware of the rising idea of a Julia interface for DUCC when I was about to start building a package out of my code.
+This gave me the chance to swap the SHTs dependencies of `HealpixMPI.jl` from `libsharp`,
+as initially planned, to `DUCC`; as well as helping Martin Reinecke, `DUCC`'s creator, with his new Julia interface.
+This allowed `HealpixMPI.jl` to be already up-to-date with the state of the art of spherical harmonics upon it's first release.
+In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `libsharp`, but has been significantly enhanced with the latest algorithmical improvements and the standard C++ multithreading implementation for *shared-memory* parallelization of the spherical harmonic transforms.
 
 ## Hybrid parallelization of the SHT
 
-## Multi-platform support
+In order to run spherical harmonic transforsm on a large number `HealpixMPI.jl` was conceived to provides a hybrid parallelization of the computationally heaviest functionalities of `Healpix.jl`, through a simultaneous shared-memory (multithreading) and distributed-memory (MPI) parallel implementation.
+For maximum efficiency, `HealpixMPI.jl` focuses on the
+
+## Distributed data types
 
 
-# Mathematics
+# Usage Example
 
 Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
 
@@ -88,9 +90,6 @@ and refer to \autoref{eq:fourier} from text.
 Citations to entries in paper.bib should be in
 [rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
 format.
-
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
 
 For a quick reference, the following citation commands can be used:
 - `@author:2001`  ->  "Author et al. (2001)"

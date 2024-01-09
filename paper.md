@@ -28,7 +28,7 @@ In brief, a spherical harmonic transform can be seen as a sort of two-dimensiona
 
 However, the SHTs are in general computationally expensive operations and thus they often constitute the *bottleneck* of the scientific software they are part of.
 For this reason, many efforts have been spent over the last couple of decades to obtain the fastest and most efficient possible SHTs implementations.
-In such setting, parallel computing naturally comes into play, especially for heavy software to be run on high performance computing (HPC) large clusters.
+In such setting, parallel computing naturally comes into play, especially for heavy software to be run on large high performance computing (HPC) clusters.
 The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
 The principal features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
 
@@ -59,9 +59,11 @@ In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `l
 
 # Hybrid parallelization of the SHT
 
-In order to run spherical harmonic transforms on a large number of cores, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively.
+To run spherical harmonic transforms on a large number of cores, i.e. on a HPC cluster, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively.
+In fact, the optimal way to parallelize operations such as the SHTs on a cluster of computers is to employ MPI to share the computation *between* the available nodes, assigning one MPI task per node, and multithreading to parallelize *within* each node, involving as many CPUs as locally available.
 
-In particular, multithreading is provided by `DUCC` for its spherical harmonic transforms 
+In the case of ‘HealpixMPI.jl’, native C++ multithreading is provided by `DUCC` for its spherical harmonic transforms by default; while the MPI interface is entirely coded in Julia, within the overloads of ‘Healpix.alm2map’ and ‘Healpix.adjoint_alm2map’, based on the package `MPI.jl` [TOCITE]
+
 
 # Usage Example
 

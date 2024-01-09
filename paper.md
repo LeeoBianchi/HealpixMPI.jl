@@ -8,11 +8,11 @@ tags:
   - cosmology
 authors:
   - name: Leo A. Bianchi
-    equal-contrib: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
 affiliations:
  - name: Dipartimento di Fisica Aldo Pontremoli, Università degli Studi di Milano, Milan, Italy
    index: 1
+   
  - name: Institute of Theoretical Astrophysics, University of Oslo, Blindern, Oslo, Norway
    index: 2
 date: 22 November 2023
@@ -51,18 +51,17 @@ In order to achieve this, an implementation of HEALPix allowing to perform spher
 
 # The latest SHT engine: DUCC
 
-As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp`[@libsharp]. However, since a couple of years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` (Distinctively Useful Code Collection).
+As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp`[@libsharp]. However, since a few years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` [@ducc], acronym of "Distinctively Useful Code Collection".
 
-The timing between the development of `DUCC` and `HealpixMPI.jl` was quite lucky, as I became aware of the rising idea of a Julia interface for DUCC when I was about to start building a package out of my code.
-This gave me the chance to swap the SHTs dependencies of `HealpixMPI.jl` from `libsharp`,
-as initially planned, to `DUCC`; as well as helping Martin Reinecke, `DUCC`'s creator, with his new Julia interface.
+The timing between the development of `HealpixMPI.jl` and a Julia interface for `DUCC` has been quite lucky.
 This allowed `HealpixMPI.jl` to be already up-to-date with the state of the art of spherical harmonics upon it's first release.
-In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `libsharp`, but has been significantly enhanced with the latest algorithmical improvements and the standard C++ multithreading implementation for *shared-memory* parallelization of the spherical harmonic transforms.
+In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `libsharp`, but has been significantly enhanced with the latest algorithmical improvements as well as the standard C++ multithreading implementation for *shared-memory* parallelization of the spherical harmonic transforms.
 
 # Hybrid parallelization of the SHT
 
-In order to run spherical harmonic transforsm on a large number of cores, `HealpixMPI.jl` provides a hybrid parallel desing, through a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively.
+In order to run spherical harmonic transforms on a large number of cores, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively.
 
+In particular, multithreading is provided by `DUCC` for its spherical harmonic transforms 
 
 # Usage Example
 

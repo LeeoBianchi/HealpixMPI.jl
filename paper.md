@@ -9,13 +9,14 @@ tags:
 authors:
   - name: Leo A. Bianchi
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
+
 affiliations:
  - name: Dipartimento di Fisica Aldo Pontremoli, Università degli Studi di Milano, Milan, Italy
    index: 1
-   
+
  - name: Institute of Theoretical Astrophysics, University of Oslo, Blindern, Oslo, Norway
    index: 2
-date: 22 November 2023
+date: 10 January 2024
 bibliography: paper.bib
 
 ---
@@ -62,16 +63,98 @@ In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `l
 To run spherical harmonic transforms on a large number of cores, i.e. on a HPC cluster, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively.
 In fact, the optimal way to parallelize operations such as the SHTs on a cluster of computers is to employ MPI to share the computation *between* the available nodes, assigning one MPI task per node, and multithreading to parallelize *within* each node, involving as many CPUs as locally available.
 
-In the case of ‘HealpixMPI.jl’, native C++ multithreading is provided by `DUCC` for its spherical harmonic transforms by default; while the MPI interface is entirely coded in Julia, within the overloads of ‘Healpix.alm2map’ and ‘Healpix.adjoint_alm2map’, based on the package `MPI.jl` [TOCITE]
-
+In the case of ‘HealpixMPI.jl’, native C++ multithreading is provided by `DUCC` for its spherical harmonic transforms by default; while the MPI interface is entirely coded in Julia, within the overloads of ‘Healpix.alm2map’ and ‘Healpix.adjoint_alm2map’, based on the package `MPI.jl` [@MPI].
 
 # Usage Example
 
+This section shows a brief usage example with all the necessary steps to set up and perform an MPI-parallel `alm2map` SHT with `HealpixMPI.jl`.
 
+### Set up
+
+We set up the necessary MPI communication and initialize Healpix.jl structures:
+````julia
+using MPI
+using Random
+using Healpix
+using HealpixMPI
+
+#MPI set-up
+MPI.Init()
+comm = MPI.COMM_WORLD
+crank = MPI.Comm_rank(comm)
+csize = MPI.Comm_size(comm)
+root = 0
+
+#initialize Healpix structures
+NSIDE = 64
+lmax = 3*NSIDE - 1
+if crank == root
+  h_map = HealpixMap{Float64, RingOrder}(NSIDE)   #empty map
+  h_alm = Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax)))  #random alm
+else
+  h_map = nothing
+  h_alm = nothing
+end
+````
+
+### Distribution
+
+The distributed HealpixMPI.jl data types are filled through an overload of `MPI.Scatter!`:
+````julia
+#initialize empty HealpixMPI structures
+d_map = DMap{RR}(comm)
+d_alm = DAlm{RR}(comm)
+
+#fill them
+MPI.Scatter!(h_map, d_map)
+MPI.Scatter!(h_alm, d_alm)
+````
+
+### SHT
+
+We perform the SHT through an overload of `Healpix.alm2map` and, if needed, we `MPI.Gather!` the result in a `HealpixMap` on the root task:
+
+````julia
+alm2map!(d_alm, d_map; nthreads = 16)
+MPI.Gather!(d_map, h_map)
+````
+
+### Polarization
+
+There are two different ways to distribute a `PolarizedHealpixMap` using `MPI.Scatter!`, i.e. passing one or two `DMap` output objects respectively, as shown in the following example:
+````julia
+MPI.Scatter!(h_map, out_d_pol_map) #here out_d_pol_map is a DMap object containing only the Q and U components of the input h_map
+MPI.Scatter!(h_map, out_d_map, out_d_pol_map) #here out_d_map contains the I component, while out_d_pol_map Q and U
+````
+
+Of course, the distribution of a polarized set of alms, represented in `Healpix.jl` by an `AbstractArray{Alm{T}, 1}`, works in a similar way:
+````julia
+MPI.Scatter!(h_alms, out_d_pol_alms) #here both h_alms and out_d_pol_alms should only contain the E and B components
+MPI.Scatter!(h_alms, out_d_alm, out_d_pol_alms) #here h_alms should contain [T,E,B], shared by out_d_alm (T) and out_d_pol_alm (E and B)
+````
+
+This allows the SHTs to be performed on the `DMap` and `DAlm` resulting objects directly, regardless of the field being polarized or not, as long as the number of components in the two objects is matching.
+The functions `alm2map` and `adjoint_alm2map` will automatically get the correct spin value for the given transform:
+````julia
+alm2map!(d_alm, d_map)         #spin-0 transform
+alm2map!(d_pol_alm, d_pol_map) #polarized transform
+````
+
+### Run
+
+In order to exploit MPI parallelization run the code through `mpirun` or `mpiexec` as
+````shell
+$ mpiexec -n {Ntask} julia {your_script.jl}
+````
+
+To run a code on multiple nodes, specify a machine file `machines.txt` as
+````shell
+$ mpiexec -machinefile machines.txt julia {your_script.jl}
+````
 
 
 # Acknowledgements
 
-I acknowledge crucial contributions from Maurizio Tomasi, my supervisor at the University of Milan at the time of `HealpixMPI.jl`'s concept being born, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the other members of Cosmoglobe collaboration.
+I acknowledge significant contributions from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the other members of Cosmoglobe collaboration.
 
 # References

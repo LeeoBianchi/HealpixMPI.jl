@@ -33,7 +33,7 @@ In such setting, parallel computing naturally comes into play, especially for he
 The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
 The principal features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
 
-![Healpix Logo \label{fig:logo}](docs/src/assets/logo.png){width=40%}
+![Healpix Logo \label{fig:logo}](../docs/src/assets/logo.png){width=40%}
 
 # Statement of need
 

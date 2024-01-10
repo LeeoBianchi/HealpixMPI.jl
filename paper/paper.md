@@ -11,7 +11,7 @@ authors:
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
 
 affiliations:
- - name: Dipartimento di Fisica Aldo Pontremoli, Università degli Studi di Milano, Milan, Italy
+ - name: Dipartimento di Fisica Aldo Pontremoli, Università degli Studi di Milano, Milan, Italy            
    index: 1
 
  - name: Institute of Theoretical Astrophysics, University of Oslo, Blindern, Oslo, Norway

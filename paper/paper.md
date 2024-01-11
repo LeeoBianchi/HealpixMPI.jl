@@ -65,7 +65,7 @@ In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `l
 
 # Hybrid parallelization of the SHT
 
-![Multi-node computing cluster representation. Multithreading is to be used within each node sharing the same memory, while MPI allows to parallelize the code over the network of nodes. Figure taken from www.comsol.com \label{fig:hybrid}](figures/hybrid_parallel.png){width=70%}
+![Multi-node computing cluster representation. Multithreading is to be used within each node, hosting cores which share the same memory, while MPI allows to parallelize the code over the network of nodes. Figure taken from www.comsol.com \label{fig:hybrid}](figures/hybrid_parallel.png){width=60%}
 
 To run spherical harmonic transforms on a large number of cores, i.e. on a HPC cluster, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively (see figure \autoref{fig:hybrid}).
 In fact, the optimal way to parallelize operations such as the SHTs on a cluster of computers is to employ MPI to share the computation *between* the available nodes, assigning one MPI task per node, and multithreading to parallelize *within* each node, involving as many CPUs as locally available.
@@ -76,7 +76,7 @@ In the case of ‘HealpixMPI.jl’, native C++ multithreading is provided by `DU
 
 This section shows a brief usage example with all the necessary steps to set up and perform an MPI-parallel `alm2map` SHT with `HealpixMPI.jl`.
 
-### Set up
+## Set up
 
 We set up the necessary MPI communication and initialize Healpix.jl structures:
 ````julia
@@ -104,7 +104,7 @@ else
 end
 ````
 
-### Distribution
+## Distribution
 
 The distributed HealpixMPI.jl data types are filled through an overload of `MPI.Scatter!`:
 ````julia
@@ -117,7 +117,7 @@ MPI.Scatter!(h_map, d_map)
 MPI.Scatter!(h_alm, d_alm)
 ````
 
-### SHT
+## SHT
 
 We perform the SHT through an overload of `Healpix.alm2map` and, if needed, we `MPI.Gather!` the result in a `HealpixMap` on the root task:
 
@@ -126,23 +126,23 @@ alm2map!(d_alm, d_map; nthreads = 16)
 MPI.Gather!(d_map, h_map)
 ````
 
-### Polarization
+## Polarization
 
 There are two different ways to distribute a `PolarizedHealpixMap` using `MPI.Scatter!`, i.e. passing one or two `DMap` output objects respectively, as shown in the following example:
 ````julia
-#here out_d_pol_map only contains the Q and U components of the input h_map
+#out_d_pol_map only contains the Q and U components of the input h_map:
 MPI.Scatter!(h_map, out_d_pol_map)
 
-#here out_d_map contains the I component, while out_d_pol_map Q and U
+#out_d_map contains the I component, while out_d_pol_map Q and U:
 MPI.Scatter!(h_map, out_d_map, out_d_pol_map)
 ````
 
 Of course, the distribution of a polarized set of alms, represented in `Healpix.jl` by an `AbstractArray{Alm{T}, 1}`, works in a similar way:
 ````julia
-#here both h_alms and out_d_pol_alms should only contain the E and B components
+#both h_alms and out_d_pol_alms should only contain the E and B components:
 MPI.Scatter!(h_alms, out_d_pol_alms)
 
-#here h_alms should contain [T,E,B], out_d_alm only T and out_d_pol_alm E and B
+#h_alms should contain [T,E,B], out_d_alm only T and out_d_pol_alm E and B:
 MPI.Scatter!(h_alms, out_d_alm, out_d_pol_alms)
 ````
 
@@ -153,7 +153,7 @@ alm2map!(d_alm, d_map)         #spin-0 transform
 alm2map!(d_pol_alm, d_pol_map) #polarized transform
 ````
 
-### Run
+## Run
 
 In order to exploit MPI parallelization run the code through `mpirun` or `mpiexec` as
 ````shell
@@ -168,6 +168,7 @@ $ mpiexec -machinefile machines.txt julia {your_script.jl}
 
 # Acknowledgements
 
-I acknowledge significant contributions from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the other members of Cosmoglobe collaboration.
+The project that led to the development of `HealpixMPI.jl` has been funded bu the University of Milan, through a "Thesis abroad scholarship".
+Moreover, I acknowledge significant contributions from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the members of Cosmoglobe collaboration during my stay at the Institutt for Teoretisk Astrofysikk of the University of Oslo.
 
 # References

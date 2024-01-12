@@ -8,6 +8,7 @@ tags:
   - cosmology
 authors:
   - name: Leo A. Bianchi
+    orcid: 0009-0002-6351-5426
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
 
 affiliations:
@@ -37,7 +38,7 @@ The Julia package `HealpixMPI.jl` constitutes an extension package of `Healpix.j
 The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
 The principal features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
 
-![Healpix Logo \label{fig:logo}](../docs/src/assets/logo.png){width=30%}
+![Healpix Logo \label{fig:logo}](figures/logo.png){width=30%}
 
 # Statement of need
 
@@ -65,7 +66,7 @@ In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `l
 
 # Hybrid parallelization of the SHT
 
-![Multi-node computing cluster representation. Multithreading is to be used within each node, hosting cores which share the same memory, while MPI allows to parallelize the code over the network of nodes. Figure taken from www.comsol.com \label{fig:hybrid}](figures/hybrid_parallel.png){width=60%}
+![Multi-node computing cluster representation. Multithreading is to be used within each node, which hosts cores sharing the same memory. While MPI allows to parallelize the code over the network of nodes. Figure taken from www.comsol.com \label{fig:hybrid}](figures/hybrid_parallel.png){width=60%}
 
 To run spherical harmonic transforms on a large number of cores, i.e. on a HPC cluster, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively (see figure \autoref{fig:hybrid}).
 In fact, the optimal way to parallelize operations such as the SHTs on a cluster of computers is to employ MPI to share the computation *between* the available nodes, assigning one MPI task per node, and multithreading to parallelize *within* each node, involving as many CPUs as locally available.
@@ -169,6 +170,6 @@ $ mpiexec -machinefile machines.txt julia {your_script.jl}
 # Acknowledgements
 
 The project that led to the development of `HealpixMPI.jl` has been funded bu the University of Milan, through a "Thesis abroad scholarship".
-Moreover, I acknowledge significant contributions from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the members of Cosmoglobe collaboration during my stay at the Institutt for Teoretisk Astrofysikk of the University of Oslo.
+Moreover, I acknowledge significant contributions from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the members of Cosmoglobe collaboration during my stay at the Institute of Theoretical Astrophysics of the University of Oslo.
 
 # References

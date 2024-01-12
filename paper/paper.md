@@ -24,19 +24,19 @@ bibliography: paper.bib
 
 # Summary
 
-Spherical Harmonic Transforms (SHT) can be seen as a special kind of Fourier Transforms, defined on the sphere, casting spatial data to the spectral domain and vice versa.
-Through an SHT, any spherically-symmetric field defined in the *real space* can be decomposed into the *harmonic space* in terms of spherical harmonics: an orthonormal basis formed by the eigenfunctions of the Laplace operator on the 2-sphere.
-For this reason, SHTs are commonly used for tackling a wide variety of scientific problems, especially in astronomy, astrophysics and geophysics.
+Spherical Harmonic Transforms (SHTs) can be seen as the spherical, two-dimensional, counterpart of Fourier Transforms, casting real-space data to the spectral domain and vice versa.
+Through an SHT, any spherically-symmetric field defined in real space can be decomposed in terms of spherical harmonics: an orthonormal basis formed by the eigenfunctions of the Laplace operator on the 2-sphere.
 
-However, the SHTs are in general computationally expensive operations and thus they often constitute the *bottleneck* of the scientific software they are part of.
+SHTs are a powerful tool commonly used for tackling a wide variety of scientific problems, especially in astronomy, astrophysics and geophysics.
+However, the SHTs are in general computationally expensive operations and thus often constitute the *bottleneck* of the scientific software they are part of.
 For this reason, many efforts have been spent over the last couple of decades to obtain the fastest and most efficient possible SHTs implementations.
 In such a setting, parallel computing naturally comes into play, especially for heavy software to be run on large High Performance Computing (HPC) clusters.
 
-The Julia package `HealpixMPI.jl` constitutes an extension package of `Healpix.jl`[@Healpix_jl], providing an efficient parallelization of its SHTs functionalities.
-`Healpix.jl` is a Julia-only implementation of the HEALPix[@HEALPix] library, which provides one of the most used tasselation schemes of the two-sphere along with a series of SHTs-related functions.
+The Julia package `HealpixMPI.jl` constitutes an extension package of `Healpix.jl` [@Healpix_jl], providing an efficient parallelization of its SHTs functionalities.
+`Healpix.jl` is a Julia-only implementation of the HEALPix [@HEALPix] library, which provides one of the most used tasselation schemes of the two-sphere along with a series of SHTs-related functions.
 
 The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
-The principal features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
+The key features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
 
 ![Healpix Logo \label{fig:logo}](figures/logo.png){width=30%}
 
@@ -46,10 +46,10 @@ Among a variety of applications, spherical harmonic transforms are particularly 
 CMB radiation is in fact very conveniently described as a temperature (and polarization) field on the sky sphere, making spherical harmonics the most natural mathematical tool to analyze its measured signal.
 On the other hand, from a computational point of view, CMB field measurements need of course to be discretized, requiring a mathematically consistent pixelization of the sphere, and the functions defined on it.
 This is exactly the goal HEALPix was targeting, when more than two decades ago was released, quickly becoming the standard library for CMB numerical analysis.
-HEALPix code can be of course used for a wider variety of applications, but its bond with CMB analysis has always been particularly strong, especially given the research interests of the main authors.
+HEALPix code can be of course used for a wider variety of applications, but its bond with CMB analysis has always been particularly strong, especially given the research interests of its main authors.
 
 Not surprisingly, the cosmic microwave background is also the research context wherein `HealpixMPI.jl` concept was born.
-SHTs are often the computational bottleneck of CMB data analysis pipelines, as the one implemented by Cosmoglobe [@Watts_2023] collaboration, based on the software Commander [@Eriksen_2004], which I contributed to with the work that led to the release of `HealpixMPI.jl`.
+SHTs are often the computational bottleneck of CMB data analysis pipelines, as the one implemented by Cosmoglobe [@Watts_2023] collaboration, based on the software Commander [@Eriksen_2004], which I have been contributing to with the work that led to the release of `HealpixMPI.jl`.
 
 Given the significantly increasing amount of data produced by the most recent observational experiments, efficient algorithms alone are no longer enough to perform SHTs within acceptable run times and a parallel approach must be implemented.
 Moreover, in the specific case of Cosmoglobe and Commander, the goal for the next years is to be able to run a full pipeline, and thus the SHTs performed in it, on a large HPC cluster *efficiently* employing at least $10^4$ cores.
@@ -58,7 +58,7 @@ In order to achieve this, an implementation of HEALPix allowing to perform spher
 
 # The latest SHT engine: DUCC
 
-As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp`[@libsharp]. However, since a few years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` [@ducc], acronym of "Distinctively Useful Code Collection".
+As of the time of this paper being submitted, `Healpix.jl` relies on the SHTs provided by the C library `libsharp` [@libsharp]. However, since a few years ago, `libsharp`’s development has ceased and its functionalities have been included, as an SHT sub-module, in `DUCC` [@ducc], acronym of "Distinctively Useful Code Collection".
 
 The timing between the development of `HealpixMPI.jl` and a Julia interface for `DUCC` has been quite lucky.
 This allowed `HealpixMPI.jl` to be already up-to-date with the state of the art of spherical harmonics upon it's first release.
@@ -169,7 +169,7 @@ $ mpiexec -machinefile machines.txt julia {your_script.jl}
 
 # Acknowledgements
 
-The project that led to the development of `HealpixMPI.jl` has been funded bu the University of Milan, through a "Thesis abroad scholarship".
-Moreover, I acknowledge significant contributions from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the members of Cosmoglobe collaboration during my stay at the Institute of Theoretical Astrophysics of the University of Oslo.
+The project that led to the development of `HealpixMPI.jl` has been funded bu the University of Milan, through a "Thesis Abroad Grant".
+Moreover, I acknowledge significant contributions to my project from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the members of Cosmoglobe collaboration during my stay at the Institute of Theoretical Astrophysics of the University of Oslo.
 
 # References

@@ -25,9 +25,9 @@ bibliography: paper.bib
 # Summary
 
 Spherical Harmonic Transforms (SHTs) can be seen as the spherical, two-dimensional, counterpart of Fourier Transforms, casting real-space data to the spectral domain and vice versa.
-Through an SHT, any spherically-symmetric field defined in real space can be decomposed in terms of spherical harmonics: an orthonormal basis formed by the eigenfunctions of the Laplace operator on the 2-sphere.
+As in Fourier analysis a function is decomposed into a set of amplitude coefficients, through an SHT, any spherically-symmetric field defined in real space can be decomposed into a set of complex harmonic coefficients $a_{\ell, m}$, commonly referred to as alms, each quantifying the contribution of the corresponding spherical harmonic.
 
-SHTs are a powerful tool commonly used for tackling a wide variety of scientific problems, especially in astronomy, astrophysics and geophysics.
+SHTs are important for a wide variety of theoretical and practical scientific application, including particle physics, astrophysics and cosmology.
 However, the SHTs are in general computationally expensive operations and thus often constitute the *bottleneck* of the scientific software they are part of.
 For this reason, many efforts have been spent over the last couple of decades to obtain the fastest and most efficient possible SHTs implementations.
 In such a setting, parallel computing naturally comes into play, especially for heavy software to be run on large High Performance Computing (HPC) clusters.
@@ -48,7 +48,7 @@ On the other hand, from a computational point of view, CMB field measurements ne
 This is exactly the goal HEALPix was targeting, when more than two decades ago was released, quickly becoming the standard library for CMB numerical analysis.
 HEALPix code can be of course used for a wider variety of applications, but its bond with CMB analysis has always been particularly strong, especially given the research interests of its main authors.
 
-Not surprisingly, the cosmic microwave background is also the research context wherein `HealpixMPI.jl` concept was born.
+Not surprisingly, the cosmic microwave background is also the research context wherein `HealpixMPI.jl` was born.
 SHTs are often the computational bottleneck of CMB data analysis pipelines, as the one implemented by Cosmoglobe [@Watts_2023] collaboration, based on the software Commander [@Eriksen_2004], which I have been contributing to with the work that led to the release of `HealpixMPI.jl`.
 
 Given the significantly increasing amount of data produced by the most recent observational experiments, efficient algorithms alone are no longer enough to perform SHTs within acceptable run times and a parallel approach must be implemented.
@@ -66,12 +66,14 @@ In fact, for what concerns the SHTs, `DUCC`’s code is derived directly from `l
 
 # Hybrid parallelization of the SHT
 
-![Multi-node computing cluster representation. Multithreading is to be used within each node, which hosts cores sharing the same memory. While MPI allows to parallelize the code over the network of nodes. Figure taken from www.comsol.com \label{fig:hybrid}](figures/hybrid_parallel.png){width=60%}
+To run SHTs on a large number of cores, i.e. on a HPC cluster, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively, as shown in figure \autoref{fig:hybrid}.
 
-To run spherical harmonic transforms on a large number of cores, i.e. on a HPC cluster, `HealpixMPI.jl` provides a hybrid parallel design, based on a simultaneous usage of multithreading and MPI, for shared- and distributed-memory parallelization respectively (see figure \autoref{fig:hybrid}).
-In fact, the optimal way to parallelize operations such as the SHTs on a cluster of computers is to employ MPI to share the computation *between* the available nodes, assigning one MPI task per node, and multithreading to parallelize *within* each node, involving as many CPUs as locally available.
+![Multi-node computing cluster representation. The optimal way to parallelize operations such as the SHTs on a cluster of computers is to employ MPI to share the computation *between* the available nodes, assigning one MPI task per node, and multithreading to parallelize *within* each node, involving as many CPUs as locally available. Figure taken from www.comsol.com. \label{fig:hybrid}](figures/hybrid_parallel.png){width=60%}
 
-In the case of ‘HealpixMPI.jl’, native C++ multithreading is provided by `DUCC` for its spherical harmonic transforms by default; while the MPI interface is entirely coded in Julia, within the overloads of ‘Healpix.alm2map’ and ‘Healpix.adjoint_alm2map’, based on the package `MPI.jl` [@MPI].
+In the case of ‘HealpixMPI.jl’, native C++ multithreading is provided by `DUCC` for its spherical harmonic transforms by default; while the MPI interface is entirely coded in Julia and based on the package `MPI.jl` [@MPI].
+
+Moreover, the MPI parallelization requires data to be distributed across the MPI tasks.
+As shown in the next section, this is implemented by mirroring `Healpix.jl`'s classes with two new *distributed* data types: `DAlm` and `DMap`, encoding the harmonic coefficients and a pixelized representation of the spherical field respectively.
 
 # Usage Example
 
@@ -166,10 +168,24 @@ To run a code on multiple nodes, specify a machine file `machines.txt` as
 $ mpiexec -machinefile machines.txt julia {your_script.jl}
 ````
 
+# Scaling results
+
+This sections shows the results of some parallel benchmark tests conducted on `HealpixMPI.jl`.
+In particular, a strong-scaling scenario is analyzed: given a problem of fixed size, the wall time improvement is measured as the number of cores exploited in the computation is increased.
+
+However, to obtain a reliable measurement of massively parallel spherical harmonics wall time is certainly nontrivial: especially for tests implying a high number of cores, intermittent operating system activity can significantly distort the measurement of short time scales.
+For this reason, the benchmark tests were carried out by timing a batch of 20 `alm2map` + `adjoint_alm2map` SHT pairs.
+For reference, the timings shown here are relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the Hyades cluster of the University of Oslo, which is composed by nodes mounting two AMD EPYC3 7543 2.8GHz 32-core CPUs each and interconnected through a Mellanox 200Gb HDR Infiniband.
+
+The benchmark results are quantified as the wall time improvement with respect to a completely serial SHT pair, shown as a function of the total number of cores (figure \autoref{fig:bench_cores}) and number of nodes (figure \autoref{fig:bench_nodes}).
+
+![Execution wall time relative to a completely serial SHT pair, shown as a function of the total number of cores exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that both axes are represented in a base-two logarithmic scale. \label{fig:bench_cores}](figures/bench_cores.png){width=40%}
+
+![Execution wall time relative to a completely serial SHT pair, shown as a function of the number of nodes exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that, in this case, the total number of cores exploited differs between the 3 series of points shown. Again, both axes are represented in a base-two logarithmic scale. \label{fig:bench_cores}](figures/bench_nodes.png){width=40%}
 
 # Acknowledgements
 
-The project that led to the development of `HealpixMPI.jl` has been funded bu the University of Milan, through a "Thesis Abroad Grant".
+The development of `HealpixMPI.jl`, as a part of my master thesis, has been funded by the University of Milan, through a "Thesis Abroad Grant".
 Moreover, I acknowledge significant contributions to my project from Maurizio Tomasi, Martin Reinecke, Hans Kristian Eriksen and Sigurd Næss; as well as the support I received from all the members of Cosmoglobe collaboration during my stay at the Institute of Theoretical Astrophysics of the University of Oslo.
 
 # References

@@ -38,7 +38,7 @@ The Julia package `HealpixMPI.jl` constitutes an extension package of `Healpix.j
 The main goal of the Julia package `HealpixMPI.jl`, presented in this paper, is to efficiently employ a high number of computing cores in order to perform fast spherical harmonic transforms.
 The key features implemented to achieve this, together with a statement of need and a brief usage example are presented in this paper.
 
-![Healpix Logo \label{fig:logo}](figures/logo.png){width=30%}
+![`HealpixMPI.jl`'s logo \label{fig:logo}](figures/logo.png){width=30%}
 
 # Statement of need
 
@@ -179,9 +179,9 @@ For reference, the timings shown here are relative to unpolarized spherical harm
 
 The benchmark results are quantified as the wall time improvement with respect to a completely serial SHT pair, shown as a function of the total number of cores (figure \autoref{fig:bench_cores}) and number of nodes (figure \autoref{fig:bench_nodes}).
 
-![Execution wall time relative to a completely serial SHT pair, shown as a function of the total number of cores exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that both axes are represented in a base-two logarithmic scale. \label{fig:bench_cores}](figures/bench_cores.png){width=40%}
+![Execution wall time relative to a completely serial SHT pair, shown as a function of the total number of cores exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that both axes are represented in a base-two logarithmic scale. \label{fig:bench_cores}](figures/bench_cores.png){width=80%}
 
-![Execution wall time relative to a completely serial SHT pair, shown as a function of the number of nodes exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that, in this case, the total number of cores exploited differs between the 3 series of points shown. Again, both axes are represented in a base-two logarithmic scale. \label{fig:bench_cores}](figures/bench_nodes.png){width=40%}
+![Execution wall time relative to a completely serial SHT pair, shown as a function of the number of nodes exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that, in this case, the total number of cores exploited differs between the 3 series of points shown. Again, both axes are represented in a base-two logarithmic scale. \label{fig:bench_nodes}](figures/bench_nodes.png){width=80%}
 
 # Acknowledgements
 

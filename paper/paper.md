@@ -77,96 +77,10 @@ As shown in the next section, this is implemented by mirroring `Healpix.jl`'s cl
 
 # Usage Example
 
-This section shows a brief usage example with all the necessary steps to set up and perform an MPI-parallel `alm2map` SHT with `HealpixMPI.jl`.
+An usage example with all the necessary steps to set up and perform an MPI-parallel `alm2map` SHT can be found in the front page of `HealpixMPI.jl`'s [repository](https://github.com/LeeoBianchi/HealpixMPI.jl).
 
-## Set up
+Also, refer to [Jommander](https://github.com/LeeoBianchi/Jommander.jl), a parallel and Julia-only CMB Gibbs Sampler, for an example of code based on `HealpixMPI.jl`.
 
-We set up the necessary MPI communication and initialize Healpix.jl structures:
-````julia
-using MPI
-using Random
-using Healpix
-using HealpixMPI
-
-#MPI set-up
-MPI.Init()
-comm = MPI.COMM_WORLD
-crank = MPI.Comm_rank(comm)
-csize = MPI.Comm_size(comm)
-root = 0
-
-#initialize Healpix structures
-NSIDE = 64
-lmax = 3*NSIDE - 1
-if crank == root
-  h_map = HealpixMap{Float64, RingOrder}(NSIDE)   #empty map
-  h_alm = Alm(lmax, lmax, randn(ComplexF64, numberOfAlms(lmax)))  #random alm
-else
-  h_map = nothing
-  h_alm = nothing
-end
-````
-
-## Distribution
-
-The distributed HealpixMPI.jl data types are filled through an overload of `MPI.Scatter!`:
-````julia
-#initialize empty HealpixMPI structures
-d_map = DMap{RR}(comm)
-d_alm = DAlm{RR}(comm)
-
-#fill them
-MPI.Scatter!(h_map, d_map)
-MPI.Scatter!(h_alm, d_alm)
-````
-
-## SHT
-
-We perform the SHT through an overload of `Healpix.alm2map` and, if needed, we `MPI.Gather!` the result in a `HealpixMap` on the root task:
-
-````julia
-alm2map!(d_alm, d_map; nthreads = 16)
-MPI.Gather!(d_map, h_map)
-````
-
-## Polarization
-
-There are two different ways to distribute a `PolarizedHealpixMap` using `MPI.Scatter!`, i.e. passing one or two `DMap` output objects respectively, as shown in the following example:
-````julia
-#out_d_pol_map only contains the Q and U components of the input h_map:
-MPI.Scatter!(h_map, out_d_pol_map)
-
-#out_d_map contains the I component, while out_d_pol_map Q and U:
-MPI.Scatter!(h_map, out_d_map, out_d_pol_map)
-````
-
-Of course, the distribution of a polarized set of alms, represented in `Healpix.jl` by an `AbstractArray{Alm{T}, 1}`, works in a similar way:
-````julia
-#both h_alms and out_d_pol_alms should only contain the E and B components:
-MPI.Scatter!(h_alms, out_d_pol_alms)
-
-#h_alms should contain [T,E,B], out_d_alm only T and out_d_pol_alm E and B:
-MPI.Scatter!(h_alms, out_d_alm, out_d_pol_alms)
-````
-
-This allows the SHTs to be performed on the `DMap` and `DAlm` resulting objects directly, regardless of the field being polarized or not, as long as the number of components in the two objects is matching.
-The functions `alm2map` and `adjoint_alm2map` will automatically get the correct spin value for the given transform:
-````julia
-alm2map!(d_alm, d_map)         #spin-0 transform
-alm2map!(d_pol_alm, d_pol_map) #polarized transform
-````
-
-## Run
-
-In order to exploit MPI parallelization run the code through `mpirun` or `mpiexec` as
-````shell
-$ mpiexec -n {Ntask} julia {your_script.jl}
-````
-
-To run a code on multiple nodes, specify a machine file `machines.txt` as
-````shell
-$ mpiexec -machinefile machines.txt julia {your_script.jl}
-````
 
 # Scaling results
 
@@ -175,7 +89,7 @@ In particular, a strong-scaling scenario is analyzed: given a problem of fixed s
 
 However, to obtain a reliable measurement of massively parallel spherical harmonics wall time is certainly nontrivial: especially for tests implying a high number of cores, intermittent operating system activity can significantly distort the measurement of short time scales.
 For this reason, the benchmark tests were carried out by timing a batch of 20 `alm2map` + `adjoint_alm2map` SHT pairs.
-For reference, the timings shown here are relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the Hyades cluster of the University of Oslo, which is composed by nodes mounting two AMD EPYC3 7543 2.8GHz 32-core CPUs each and interconnected through a Mellanox 200Gb HDR Infiniband.
+For reference, the scaling shown here is relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the Hyades cluster of the University of Oslo, which is composed by nodes mounting two AMD EPYC3 7543 2.8GHz 32-core CPUs each and interconnected through a Mellanox 200Gb HDR Infiniband.
 
 The benchmark results are quantified as the wall time improvement with respect to a completely serial SHT pair, shown as a function of the total number of cores (figure \autoref{fig:bench_cores}) and number of nodes (figure \autoref{fig:bench_nodes}).
 

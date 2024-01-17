@@ -57,7 +57,7 @@ end
 
 The distributed HealpixMPI.jl data types are filled through an overload of `MPI.Scatter!`:
 ````julia
-#initialize empty HealpixMPI structures 
+#initialize empty HealpixMPI structures
 d_map = DMap{RR}(comm)
 d_alm = DAlm{RR}(comm)
 
@@ -82,18 +82,24 @@ This allows the user to adjust at run time the number of threads to use, typical
 Since v1.0.0 HealpixMPI.jl supports polarized SHT's.
 There are two different ways to distribute a `PolarizedHealpixMap` using `MPI.Scatter!`, i.e. passing one or two `DMap` output objects respectively, as shown in the following example:
 ````julia
-MPI.Scatter!(h_map, out_d_pol_map) #here out_d_pol_map is a DMap object containing only the Q and U components of the input h_map
-MPI.Scatter!(h_map, out_d_map, out_d_pol_map) #here out_d_map contains the I component, while out_d_pol_map Q and U 
+#out_d_pol_map only contains the Q and U components of the input h_map:
+MPI.Scatter!(h_map, out_d_pol_map)
+
+#out_d_map contains the I component, while out_d_pol_map Q and U:
+MPI.Scatter!(h_map, out_d_map, out_d_pol_map)
 ````
 
-Of course, the distribution of a polarized set of alms, represented in `Healpix.jl` by an `AbstractArray{Alm{T}, 1}`, works in a similar way: 
+Of course, the distribution of a polarized set of alms, represented in `Healpix.jl` by an `AbstractArray{Alm{T}, 1}`, works in a similar way:
 ````julia
-MPI.Scatter!(h_alms, out_d_pol_alms) #here both h_alms and out_d_pol_alms should only contain the E and B components
-MPI.Scatter!(h_alms, out_d_alm, out_d_pol_alms) #here h_alms should contain [T,E,B], shared by out_d_alm (T) and out_d_pol_alm (E and B)
+#both h_alms and out_d_pol_alms should only contain the E and B components:
+MPI.Scatter!(h_alms, out_d_pol_alms)
+
+#h_alms should contain [T,E,B], out_d_alm only T and out_d_pol_alm E and B:
+MPI.Scatter!(h_alms, out_d_alm, out_d_pol_alms)
 ````
 
 This allows the SHTs to be performed on the `DMap` and `DAlm` resulting objects directly, regardless of the field being polarized or not, as long as the number of components in the two objects is matching.
-The functions `alm2map` and `adjoint_alm2map` will get authomatically the correct spin value for the given transform:
+The functions `alm2map` and `adjoint_alm2map` will get automatically the correct spin value for the given transform:
 ````julia
 alm2map!(d_alm, d_map)         #spin-0 transform
 alm2map!(d_pol_alm, d_pol_map) #polarized transform

@@ -89,13 +89,12 @@ In particular, a strong-scaling scenario is analyzed: given a problem of fixed s
 
 To obtain a reliable measurement of massively parallel spherical harmonics wall time is certainly nontrivial: especially for tests implying a high number of cores, intermittent operating system activity can significantly distort the measurement of short time scales.
 For this reason, the benchmark tests were carried out by timing a batch of 20 `alm2map` + `adjoint_alm2map` SHT pairs.
-For reference, the scaling shown here is relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the Hyades cluster of the University of Oslo, which is composed by nodes mounting two AMD EPYC3 7543 2.8GHz 32-core CPUs each and interconnected through a Mellanox 200Gb HDR Infiniband.
-
+For reference, the scaling shown here is relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the [Hyades cluster](https://www.mn.uio.no/astro/english/services/it/help/basic-services/compute-resources.html) of the University of Oslo.
 The benchmark results are quantified as the wall time multiplied by the total number of cores, shown in a 3d-plot (figure \autoref{fig:bench}) as a function of the number of local threads and MPI tasks (nodes).
 
-![The measured wall time is multiplied by the total number of cores used, and plotted as a function of the number of local threads and MPI tasks (one per-node) used. The total number of cores corresponding to each column is of course given by the product of these two quantities. \label{fig:bench}](figures/3DBench.png){width=50%}
+![The measured wall time is multiplied by the total number of cores used, and plotted as a function of the number of local threads and MPI tasks (one per-node) used. The total number of cores corresponding to each column is of course given by the product of these two quantities. \label{fig:bench}](figures/3DBench.png){width=75%}
 
-Increasing the number of threads on a single core, for which no MPI communication is needed, leads to an almost-ideal scaling up to $\sim 50$ cores. For 60 and higher local threads we start observing a slight slowdown, probably given by the many threads simultaneously trying to access the same memory hitting its bandwidth limit.
+Increasing the number of threads on a single core, for which no MPI communication is needed, leads to an almost-ideal scaling up to $\sim 50$ cores. For 60 and higher local threads we start observing a slight slowdown, probably given by the many threads simultaneously trying to access the same memory, hitting its bandwidth limit.
 While switching to a multi-node setup, we introduce, as expected, an overhead given by the necessary MPI communication whose size, unfortunately, remains constant as we increase the number of local threads, leading to the ramp-shape, along the "local threads"-axis, shown by the plot.
 However, the overhead size do scale down, even if not perfectly, when we increase the number of nodes, as the size of the locally stored data will linearly decrease.
 This can seen by the fact that, along the "nodes"-axis, $t_{\mathrm{wall}} \times N_{\mathrm{cores}}$ remains approximately constant.

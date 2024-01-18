@@ -79,23 +79,26 @@ As shown in the next section, this is implemented by mirroring `Healpix.jl`'s cl
 
 An usage example with all the necessary steps to set up and perform an MPI-parallel `alm2map` SHT can be found in the front page of `HealpixMPI.jl`'s [repository](https://github.com/LeeoBianchi/HealpixMPI.jl).
 
-Also, refer to [Jommander](https://github.com/LeeoBianchi/Jommander.jl), a parallel and Julia-only CMB Gibbs Sampler, for an example of code based on `HealpixMPI.jl`.
+In addition, refer to [Jommander](https://github.com/LeeoBianchi/Jommander.jl), a parallel and Julia-only CMB Gibbs Sampler, for an example of code based on `HealpixMPI.jl`.
 
 
 # Scaling results
 
-This sections shows the results of some parallel benchmark tests conducted on `HealpixMPI.jl`.
+This section shows the results of some parallel benchmark tests conducted on `HealpixMPI.jl`.
 In particular, a strong-scaling scenario is analyzed: given a problem of fixed size, the wall time improvement is measured as the number of cores exploited in the computation is increased.
 
-However, to obtain a reliable measurement of massively parallel spherical harmonics wall time is certainly nontrivial: especially for tests implying a high number of cores, intermittent operating system activity can significantly distort the measurement of short time scales.
+To obtain a reliable measurement of massively parallel spherical harmonics wall time is certainly nontrivial: especially for tests implying a high number of cores, intermittent operating system activity can significantly distort the measurement of short time scales.
 For this reason, the benchmark tests were carried out by timing a batch of 20 `alm2map` + `adjoint_alm2map` SHT pairs.
 For reference, the scaling shown here is relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the Hyades cluster of the University of Oslo, which is composed by nodes mounting two AMD EPYC3 7543 2.8GHz 32-core CPUs each and interconnected through a Mellanox 200Gb HDR Infiniband.
 
-The benchmark results are quantified as the wall time improvement with respect to a completely serial SHT pair, shown as a function of the total number of cores (figure \autoref{fig:bench_cores}) and number of nodes (figure \autoref{fig:bench_nodes}).
+The benchmark results are quantified as the wall time multiplied by the total number of cores, shown in a 3d-plot (figure \autoref{fig:bench}) as a function of the number of local threads and MPI tasks (nodes).
 
-![Execution wall time relative to a completely serial SHT pair, shown as a function of the total number of cores exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that both axes are represented in a base-two logarithmic scale. \label{fig:bench_cores}](figures/bench_cores.png){width=80%}
+![The measured wall time is multiplied by the total number of cores used, and plotted as a function of the number of local threads and MPI tasks (one per-node) used. The total number of cores corresponding to each column is of course given by the product of these two quantities. \label{fig:bench}](figures/3DBench.png){width=50%}
 
-![Execution wall time relative to a completely serial SHT pair, shown as a function of the number of nodes exploited, for 3 different node sizes: 16, 32 and 64 local cores respectively. Note that, in this case, the total number of cores exploited differs between the 3 series of points shown. Again, both axes are represented in a base-two logarithmic scale. \label{fig:bench_nodes}](figures/bench_nodes.png){width=80%}
+Increasing the number of threads on a single core, for which no MPI communication is needed, leads to an almost-ideal scaling up to $\sim 50$ cores. For 60 and higher local threads we start observing a slight slowdown, probably given by the many threads simultaneously trying to access the same memory hitting its bandwidth limit.
+While switching to a multi-node setup, we introduce, as expected, an overhead given by the necessary MPI communication whose size, unfortunately, remains constant as we increase the number of local threads, leading to the ramp-shape, along the "local threads"-axis, shown by the plot.
+However, the overhead size do scale down, even if not perfectly, when we increase the number of nodes, as the size of the locally stored data will linearly decrease.
+This can seen by the fact that, along the "nodes"-axis, $t_{\mathrm{wall}} \times N_{\mathrm{cores}}$ remains approximately constant.
 
 # Acknowledgements
 

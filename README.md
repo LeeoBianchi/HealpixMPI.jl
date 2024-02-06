@@ -1,6 +1,7 @@
 [![Codecov](https://codecov.io/gh/LeeoBianchi/HealpixMPI.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/LeeoBianchi/HealpixMPI.jl)
 [![Build Status](https://github.com/LeeoBianchi/HealpixMPI.jl/workflows/Unit%20tests/badge.svg)](https://github.com/LeeoBianchi/HealpixMPI.jl/actions/workflows/UnitTest.yml)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://leeobianchi.github.io/HealpixMPI.jl/dev/)
+[![status](https://joss.theoj.org/papers/f012d3aa6c7cd644b8b9ecbe2c5a0aef/status.svg)](https://joss.theoj.org/papers/f012d3aa6c7cd644b8b9ecbe2c5a0aef)
 
 <img src="docs/src/assets/logo.png" width="180">
 

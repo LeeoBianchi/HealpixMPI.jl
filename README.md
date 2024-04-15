@@ -116,3 +116,13 @@ To run a code on multiple nodes, specify a machine file `machines.txt` as
 ````shell
 $ mpiexec -machinefile machines.txt julia {your_script.jl}
 ````
+
+## Support & Contributions
+
+To seek support or to report bugs, please [open an issue](https://github.com/LeeoBianchi/HealpixMPI.jl/issues) on this repository.
+
+If you would like to contribute to HealpixMPI.jl please describe first the problem you want to solve, or the idea you have, in a new issue. 
+
+After the issue is accepted you are good to go and can start writing code locally on your computer. Please remember to include **tests** and **documentation** for the new functionalities you are implementing.
+
+Once your new code is ready, you can submit a new [pull request](https://github.com/LeeoBianchi/HealpixMPI.jl/pulls). Remember to check if the review of your pull request has yielded any comments, as they might require you to make changes to your code.

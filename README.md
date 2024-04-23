@@ -53,6 +53,8 @@ else
 end
 ````
 
+For more advanced examples of code, refer to the scripts in the folder "examples".
+
 ### Distribution
 
 The distributed HealpixMPI.jl data types are filled through an overload of `MPI.Scatter!`:

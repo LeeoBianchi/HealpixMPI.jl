@@ -39,18 +39,13 @@ The main goal of the Julia package `HealpixMPI.jl` presented in this paper is to
 This paper presents the key features implemented to achieve this, together with a statement of need and the results of a parallel scaling test.
 
 </br>
-</br>
-</br>
 
 ![`HealpixMPI.jl`'s logo \label{fig:logo}](figures/logo.png){width=30%}
 
-</br>
-</br>
-</br>
 
 # Statement of need
 
-Among a variety of applications, spherical harmonic transforms are extremely relevant in different cosmological research topics, e.g. [@Loureiro_2023], [@euclidcollaboration2023euclid].
+Together with a variety of applications, spherical harmonic transforms are extremely relevant in different cosmological research topics, e.g. [@Loureiro_2023], [@euclidcollaboration2023euclid].
 Among those, SHT are essential for the analysis of cosmic microwave background (CMB) radiation, which is among the most active research fields of recent cosmology.
 CMB radiation is, in fact, very conveniently described as a temperature (and polarization) field on the sky sphere, making spherical harmonics the most natural mathematical tool for analyzing its measured signal.
 On the other hand, from a computational point of view, CMB field measurements need, of course, to be discretized, requiring a mathematically consistent pixelization of the sphere and the functions defined on it.

@@ -39,8 +39,14 @@ The main goal of the Julia package `HealpixMPI.jl` presented in this paper is to
 This paper presents the key features implemented to achieve this, together with a statement of need and the results of a parallel scaling test.
 
 </br>
+</br>
+</br>
 
 ![`HealpixMPI.jl`'s logo \label{fig:logo}](figures/logo.png){width=30%}
+
+</br>
+</br>
+</br>
 
 # Statement of need
 

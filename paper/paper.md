@@ -25,11 +25,11 @@ bibliography: paper.bib
 # Summary
 
 Spherical Harmonic Transforms (SHTs) can be seen as Fourier Transforms' spherical, two-dimensional counterparts, casting real-space data to the spectral domain and vice versa.
-As in Fourier analysis a function is decomposed into a set of amplitude coefficients, an SHT allows to decompose any spherically-symmetric field, defined in real space, into a set of complex harmonic coefficients $a_{\ell, m}$, commonly referred to as alms, each quantifying the contribution of the corresponding spherical harmonic function.
+As in Fourier analysis where a function is decomposed into a set of amplitude coefficients, an SHT allows any spherically-symmetric field, defined in real space, to be decompose into a set of complex harmonic coefficients $a_{\ell, m}$, commonly referred to as alms, where each quantifies the contribution of the corresponding spherical harmonic function.
 
 SHTs are important for a wide variety of theoretical and practical scientific applications, including particle physics, astrophysics, and cosmology.
 However, SHTs are generally computationally expensive operations and thus often constitute the *bottleneck* of the scientific software they are part of.
-For this reason, much effort has been spent over the last couple of decades to obtain fast and efficient SHTs implementations.
+For this reason, much effort has been spent over the last couple of decades to obtain fast and efficient SHT implementations.
 In such a setting, parallel computing naturally comes into play, especially for time-consuming software to be run on large High-Performance Computing (HPC) clusters.
 
 The Julia package `HealpixMPI.jl` constitutes an extension package of `Healpix.jl` [@Healpix_jl], efficiently parallelizing its SHT-related functionalities.
@@ -92,7 +92,7 @@ This section shows the results of parallel benchmark tests conducted on `Healpix
 In particular, a strong-scaling scenario is analyzed: given a problem of fixed size, the wall time improvement is measured as the number of cores exploited in the computation is increased.
 
 To obtain a reliable measurement of massively parallel spherical harmonics wall time is certainly nontrivial, especially for tests employing a high number of cores; intermittent operating system activity (aka, jitter) can significantly distort the measurement of short time scales.
-For this reason, the benchmark tests were carried out by timing a batch of 20 `alm2map` + `adjoint_alm2map` SHTs pairs.
+For this reason, the benchmark tests were carried out by timing a batch of 20 `alm2map` + `adjoint_alm2map` SHT pairs.
 For reference, the scaling shown here is relative to unpolarized spherical harmonics with $\mathrm{N}_\mathrm{side} = 4096$ and $\ell_{\mathrm{max}} = 12287$ and were carried out on the [Hyades cluster](https://www.mn.uio.no/astro/english/services/it/help/basic-services/compute-resources.html) of the University of Oslo.
 The benchmark results are quantified as the wall time multiplied by the total number of cores, shown in a 3D plot (\autoref{fig:bench}) as a function of the number of local threads and MPI tasks (always one per node).
 

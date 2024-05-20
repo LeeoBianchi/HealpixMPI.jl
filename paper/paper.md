@@ -25,7 +25,7 @@ bibliography: paper.bib
 # Summary
 
 Spherical Harmonic Transforms (SHTs) can be seen as Fourier Transforms' spherical, two-dimensional counterparts, casting real-space data to the spectral domain and vice versa.
-As in Fourier analysis where a function is decomposed into a set of amplitude coefficients, an SHT allows any spherically-symmetric field, defined in real space, to be decompose into a set of complex harmonic coefficients $a_{\ell, m}$, commonly referred to as alms, where each quantifies the contribution of the corresponding spherical harmonic function.
+As in Fourier analysis where a function is decomposed into a set of amplitude coefficients, an SHT allows any spherically-symmetric field, defined in real space, to be decomposed into a set of complex harmonic coefficients $a_{\ell, m}$, commonly referred to as alms, where each quantifies the contribution of the corresponding spherical harmonic function.
 
 SHTs are important for a wide variety of theoretical and practical scientific applications, including particle physics, astrophysics, and cosmology.
 However, SHTs are generally computationally expensive operations and thus often constitute the *bottleneck* of the scientific software they are part of.

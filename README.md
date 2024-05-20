@@ -111,3 +111,26 @@ To run a code on multiple nodes, specify a machine file `machines.txt` as
 ````shell
 $ mpiexec -machinefile machines.txt julia {your_script.jl}
 ````
+
+## How to Cite
+
+If you make use of HealpixMPI.jl for your work, please remember to cite it properly.
+
+In order to do so, click on the *Cite this repository* menu in the *About* section of this repository.
+Alternatively, use the following BibTeX entry:
+
+```
+@article{Bianchi_HealpixMPI_jl_an_MPI-parallel_2024,
+author = {Bianchi, Leo A.},
+doi = {10.21105/joss.06467},
+journal = {Journal of Open Source Software},
+publisher = {The Open Journal},
+month = may,
+number = {97},
+pages = {6467},
+title = {{HealpixMPI.jl: an MPI-parallel implementation of the Healpix tessellation scheme in Julia}},
+url = {https://joss.theoj.org/papers/10.21105/joss.06467},
+volume = {9},
+year = {2024}
+}
+```

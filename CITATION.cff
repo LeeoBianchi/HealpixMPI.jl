@@ -1,0 +1,28 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Bianchi
+  given-names: Leo A.
+  orcid: "https://orcid.org/0009-0002-6351-5426"
+doi: 10.5281/zenodo.11192548
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Bianchi
+    given-names: Leo A.
+    orcid: "https://orcid.org/0009-0002-6351-5426"
+  date-published: 2024-05-20
+  doi: 10.21105/joss.06467
+  issn: 2475-9066
+  issue: 97
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 6467
+  title: "HealpixMPI.jl: an MPI-parallel implementation of the Healpix
+    tessellation scheme in Julia"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.06467"
+  volume: 9
+title: "HealpixMPI.jl: an MPI-parallel implementation of the Healpix
+  tessellation scheme in Julia"
